@@ -1,0 +1,423 @@
+================================================================================
+  AGENTE DO TEMPO — JANELA DE CONTEXTO PARA CLAUDE CODE
+  Sistema de Meteorologia Interativa | Versão 2.0 — Visual Vibrante
+================================================================================
+
+COMO USAR ESTE ARQUIVO
+  Coloque este arquivo na raiz do projeto como CLAUDE.md ou passe-o como
+  contexto inicial ao Claude Code:
+    claude --context AGENTE_DO_TEMPO_CONTEXT.txt
+
+================================================================================
+1. VISÃO GERAL DO SISTEMA
+================================================================================
+
+Nome:       Agente do Tempo
+Tipo:       Single-page application (SPA) — arquivo HTML único
+Arquivo:    index.html  (~1900 linhas, zero dependências locais)
+Hospedagem: Netlify (drag-and-drop, zero configuração de servidor)
+Stack:      HTML + CSS + JavaScript puro. Sem npm. Sem build. Sem frameworks.
+
+O sistema une 4 componentes em pipeline:
+  [1] Visual Vibrante   — temas animados Chuva/Sol com aurora e partículas
+  [2] Stripe Paywall    — página de marketing + controle de acesso
+  [3] Google Maps / Demo — mapa interativo OU modo demo visual
+  [4] Open-Meteo API    — dados de pluviosidade em tempo real
+
+================================================================================
+2. ESTRUTURA DE ARQUIVOS
+================================================================================
+
+  agente-do-tempo/
+  ├── index.html                  ← ÚNICO ARQUIVO DO SISTEMA
+  └── AGENTE_DO_TEMPO_CONTEXT.txt ← este arquivo (contexto para Claude Code)
+
+================================================================================
+3. DESIGN VISUAL — TEMA COLORIDO/VIBRANTE
+================================================================================
+
+PALETA DE CORES (CSS Variables):
+  --cor-primaria:      #6366f1   (Indigo vibrante)
+  --cor-secundaria:    #06b6d4   (Cyan)
+  --cor-terciaria:     #8b5cf6   (Roxo)
+  --cor-accent:        #f43f5e   (Rosa/Vermelho)
+  --cor-fundo:         #0f0f23   (Azul escuro profundo)
+  --cor-fundo-card:    rgba(255, 255, 255, 0.08)  (Glassmorphism)
+  --cor-texto:         #ffffff
+  --cor-texto-claro:   #a5b4fc   (Lavanda)
+
+GRADIENTES PRINCIPAIS:
+  --gradiente-aurora:  linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe)
+  --gradiente-card:    linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))
+
+EFEITOS DE SOMBRA:
+  --sombra-glow:       0 0 40px rgba(99, 102, 241, 0.5)  (Brilho neon)
+  --sombra-elevada:    0 20px 40px rgba(139, 92, 246, 0.3)
+
+================================================================================
+4. SISTEMA DE TEMAS ANIMADOS
+================================================================================
+
+O sistema possui 2 temas visuais que podem alternar automaticamente:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  TEMA CHUVA (padrão)                                                        │
+│  ───────────────────                                                        │
+│  • Aurora boreal: gradientes roxo/azul/cyan animados (20s loop)             │
+│  • Chuva colorida: 60 gotas com 4 cores (azul, roxo, cyan, rosa)            │
+│  • Partículas flutuantes: 25 partículas HSL variadas                        │
+│  • Gotas com glow (box-shadow) e rotação de 10°                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  TEMA SOL DE VERÃO                                                          │
+│  ─────────────────                                                          │
+│  • Aurora quente: gradientes amarelo/laranja/rosa                           │
+│  • Sol pulsante: esfera com gradiente + glow intenso (4s pulse)             │
+│  • Raios giratórios: 12 raios girando (30s/volta completa)                  │
+│  • Brilhos flutuantes: 20 partículas douradas subindo                       │
+│  • Ondas de calor: efeito de heat shimmer na parte inferior                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CONTROLES DE TEMA (canto inferior direito):
+  🌧️  ativarTemaChuva()   — Ativa tema chuva manualmente
+  ☀️  ativarTemaSol()     — Ativa tema sol manualmente
+  🔄  ativarTemaAuto()    — Alterna automaticamente a cada 8 segundos
+
+VARIÁVEIS DE CONTROLE:
+  temaAtual           string        'chuva' | 'sol'
+  intervaloTemaAuto   number|null   ID do setInterval para alternância
+
+================================================================================
+5. ELEMENTOS HTML DOS TEMAS
+================================================================================
+
+<!-- Fora do #pagina-locked, sempre visíveis -->
+
+<div class="aurora" id="aurora"></div>           <!-- Aurora chuva -->
+<div class="particulas" id="particulas"></div>   <!-- Partículas chuva -->
+
+<div class="sol-container" id="sol-container">   <!-- Container sol -->
+  <div class="aurora-sol"></div>                 <!-- Fundo quente -->
+  <div class="ondas-calor"></div>                <!-- Heat waves -->
+  <div class="raios-sol" id="raios-sol"></div>   <!-- Raios giratórios -->
+  <div class="sol"></div>                        <!-- Esfera do sol -->
+  <div id="brilhos-sol"></div>                   <!-- Sparkles -->
+</div>
+
+<div class="tema-indicador">                     <!-- Botões toggle -->
+  <button id="btn-chuva">🌧️</button>
+  <button id="btn-sol">☀️</button>
+  <button id="btn-auto">🔄</button>
+</div>
+
+================================================================================
+6. ANIMAÇÕES CSS PRINCIPAIS
+================================================================================
+
+@keyframes aurora-move         — Movimento da aurora (20s)
+@keyframes flutuar             — Partículas subindo (8s)
+@keyframes cair                — Gotas de chuva caindo (0.8-2s)
+@keyframes aurora-sol-move     — Aurora quente com hue-rotate (15s)
+@keyframes pulsar-sol          — Sol expandindo/contraindo (4s)
+@keyframes girar-raios         — Raios girando 360° (30s)
+@keyframes brilho-flutuar      — Sparkles subindo (6s)
+@keyframes ondas-subir         — Ondas de calor (8s)
+@keyframes gradiente-texto     — Logo com gradiente animado (3s)
+@keyframes bounce-icon         — Ícone do logo pulando (2s)
+@keyframes brilho-texto        — Título com drop-shadow pulsante (4s)
+@keyframes pulse-preco         — Preço com scale animado (2s)
+@keyframes brilho-overlay      — Shine no preview do mapa (3s)
+@keyframes float-icon          — Ícones dos cards flutuando (3s)
+
+================================================================================
+7. MODO DEMO (SEM GOOGLE MAPS)
+================================================================================
+
+Quando CONFIG.GOOGLE_MAPS_KEY contém 'XXXX' ou é inválida, o sistema
+automaticamente entra em MODO DEMO com mapa visual simulado.
+
+FUNÇÃO: inicializarMapaDemo()
+
+ELEMENTOS DO MAPA DEMO:
+  .mapa-demo           — Container principal com fundo escuro
+  .mapa-demo-bg        — Aurora de fundo com gradientes
+  .grid-coords         — Grade de coordenadas decorativa (50x50px)
+  .brasil-outline      — SVG simplificado do contorno do Brasil
+  .marcador-demo       — Pontos clicáveis (15 locais)
+  .mapa-instrucao      — Hint "Clique nos pontos..."
+
+POSIÇÕES DOS MARCADORES (em % do container):
+  const posicoesDemo = {
+    'alter-chao':         { x: 35, y: 25 },
+    'jericoacoara':       { x: 62, y: 22 },
+    'fernando-noronha':   { x: 75, y: 28 },
+    'porto-seguro':       { x: 68, y: 52 },
+    'bonito':             { x: 38, y: 62 },
+    'chapada-diamantina': { x: 58, y: 45 },
+    'foz-iguacu':         { x: 40, y: 72 },
+    'lencois-maranhenses':{ x: 55, y: 20 },
+    'gramado':            { x: 42, y: 80 },
+    'florianopolis':      { x: 52, y: 76 },
+    'buzios':             { x: 62, y: 62 },
+    'paraty':             { x: 55, y: 64 },
+    'ilhabela':           { x: 52, y: 65 },
+    'brotas':             { x: 48, y: 62 },
+    'capitolio':          { x: 50, y: 58 },
+  };
+
+VARIÁVEL DE CONTROLE:
+  modoDemo    boolean    true quando usando mapa simulado
+
+FLUXO:
+  carregarGoogleMapsApi()
+    ├─ Se chave inválida → inicializarMapaDemo()
+    └─ Se chave válida   → inicializarMapa() (Google Maps real)
+
+================================================================================
+8. OBJETO CONFIG — PONTO CENTRAL DE CONFIGURAÇÃO
+================================================================================
+
+const CONFIG = {
+  // STRIPE (opcional para demo)
+  STRIPE_BUY_BUTTON_ID: "buy_btn_XXXXXXXXXXXXXXXX",
+  STRIPE_PUBLISHABLE_KEY: "pk_live_XXXXXXXXXXXXXXXXX",
+  SUCCESS_PARAM: "acesso=liberado",
+
+  // GOOGLE MAPS (opcional — fallback para modo demo)
+  GOOGLE_MAPS_KEY: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXX",
+
+  // OPEN-METEO (sem chave — grátis)
+  WEATHER_API: "https://api.open-meteo.com/v1/forecast",
+
+  // MAPA
+  MAP_CENTER: { lat: -14.235, lng: -51.925 },
+  MAP_ZOOM: 5,
+
+  // GERAL
+  SITE_NAME: "Agente do Tempo",
+  PRICE_DISPLAY: "R$ 19,90/mês",
+  CACHE_MIN: 30,
+
+  // LOCAIS CURADOS (15 locais)
+  LOCATIONS: [
+    { id: "alter-chao", name: "Alter do Chão", lat: -2.5227, lng: -54.9493, tipo: "praia", estado: "PA" },
+    { id: "jericoacoara", name: "Jericoacoara", lat: -2.7964, lng: -40.5117, tipo: "praia", estado: "CE" },
+    // ... mais 13 locais
+  ],
+};
+
+================================================================================
+9. VARIÁVEIS GLOBAIS
+================================================================================
+
+Variável              Tipo          Propósito
+──────────────────────────────────────────────────────────────────────────────
+map                   object|null   Google Maps instance (null no demo)
+marcadorAtual         object|null   Marker do último clique
+marcadoresCurados     array         Markers dos CONFIG.LOCATIONS
+pendingLocalId        string|null   ID pendente se mapa ainda carregando
+mapsApiCarregada      boolean       Flag de carregamento da API
+consultaEmAndamento   boolean       MUTEX de consulta (impede cliques duplos)
+cancelarCarga         boolean       Flag para cancelar carregarChuvaLocais()
+_fetchEmAndamento     Map           Deduplicação de fetches
+modoDemo              boolean       true = usando mapa visual simulado
+temaAtual             string        'chuva' | 'sol'
+intervaloTemaAuto     number|null   ID do setInterval para auto-alternate
+
+================================================================================
+10. FLUXO DE BOOT (DOMContentLoaded)
+================================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  injetarStripeButton();   // Stripe ou botão demo
+  criarGotas();            // 60 gotas coloridas
+  criarParticulas();       // 25 partículas flutuantes
+  criarRaiosSol();         // 12 raios do sol
+  criarBrilhosSol();       // 20 sparkles do sol
+
+  if (verificarAcesso()) {
+    ativarUnlocked();
+    carregarGoogleMapsApi();  // → inicializarMapa() ou inicializarMapaDemo()
+  } else {
+    ativarLocked();
+  }
+});
+
+================================================================================
+11. FUNÇÕES DE CRIAÇÃO DE ELEMENTOS VISUAIS
+================================================================================
+
+criarGotas()
+  - Cria 60 elementos .gota com classes de cor aleatória
+  - Cores: azul, roxo, cyan, rosa
+  - Altura variável: 15-35px
+  - Duração: 0.8-2s
+
+criarParticulas()
+  - Cria 25 elementos .particula
+  - Cores HSL: hue 220-280, sat 80%, light 70%
+  - Tamanho: 2-6px
+  - Duração: 5-15s
+
+criarRaiosSol()
+  - Cria 12 elementos .raio
+  - Rotação: i * 30° (360/12)
+  - Opacidade: 0.3-0.8
+
+criarBrilhosSol()
+  - Cria 20 elementos .brilho-sol
+  - Posição: 10-90% em X e Y
+  - Tamanho: 4-10px
+  - Duração: 4-10s
+
+================================================================================
+12. ARQUITETURA DE ESTADOS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  LOCKED  (#pagina-locked)                                                   │
+│  • Página de marketing com scroll                                           │
+│  • Temas Chuva/Sol animados no fundo                                        │
+│  • Header glassmorphism com logo gradiente animado                          │
+│  • Hero com título gradiente + glow pulsante                                │
+│  • Preview do mapa com shine effect                                         │
+│  • 6 cards de benefícios com glassmorphism e hover 3D                       │
+│  • Seção de compra com botão gradiente + shine                              │
+│  • Botões de tema no canto inferior direito                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  UNLOCKED  (#pagina-unlocked.ativo)                                         │
+│  • App fullscreen (100vh, overflow hidden)                                  │
+│  • Sidebar com welcome, lista de locais, painel de dados                    │
+│  • Mapa Google Maps OU Mapa Demo visual                                     │
+│  • Dados meteorológicos reais da API Open-Meteo                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+13. ESTILIZAÇÃO DOS COMPONENTES
+================================================================================
+
+HEADER LOCKED:
+  - background: rgba(15, 15, 35, 0.8)
+  - backdrop-filter: blur(20px)
+  - border-bottom: 1px solid rgba(255,255,255,0.15)
+
+LOGO:
+  - background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4)
+  - -webkit-background-clip: text
+  - animation: gradiente-texto 3s infinite
+
+HERO H1:
+  - font-size: 3.5rem
+  - background: linear-gradient(135deg, #fff, #a5b4fc, #06b6d4)
+  - animation: brilho-texto 4s infinite (drop-shadow pulsante)
+
+CARDS BENEFÍCIOS:
+  - background: rgba(255,255,255,0.08)
+  - backdrop-filter: blur(20px)
+  - border: 1px solid rgba(255,255,255,0.15)
+  - ::before: barra gradiente no topo (scaleX 0→1 no hover)
+  - hover: translateY(-10px) scale(1.02) + glow
+
+BOTÃO CTA:
+  - background: linear-gradient(135deg, #6366f1, #8b5cf6)
+  - border-radius: 50px
+  - box-shadow: 0 10px 30px rgba(99,102,241,0.4)
+  - ::before: shine effect (left -100% → 100%)
+  - hover: translateY(-5px) scale(1.05) + glow aumentado
+
+================================================================================
+14. CLASSIFICAÇÃO DE RISCO DE CHUVA
+================================================================================
+
+function classificar(mm24h, mmAgora) → { label, desc, icon, cor, risco }
+
+Nível       mm24h      Cor        Ícone   Recomendação
+──────────────────────────────────────────────────────────────────────────────
+nulo        < 0.1mm    #10b981    ☀️      Ótimo dia para atividades!
+baixo       < 5mm      #3b82f6    🌦️      Leve uma sombrinha
+medio       < 25mm     #f59e0b    🌧️      Adiar atividades ao ar livre
+alto        < 50mm     #ef4444    ⛈️      Evite sair de casa
+critico     >= 50mm    #dc2626    🌊      ALERTA: Risco de alagamentos!
+
+================================================================================
+15. APIs EXTERNAS
+================================================================================
+
+OPEN-METEO (GRÁTIS)
+  URL:    https://api.open-meteo.com/v1/forecast
+  Chave:  NÃO PRECISA
+  Docs:   https://open-meteo.com/en/docs
+  Params: current (precipitation, rain, weathercode, windspeed_10m, temperature_2m)
+          daily (precipitation_sum, precipitation_probability_max)
+          forecast_days: 4
+          timezone: America/Sao_Paulo
+
+GOOGLE MAPS (OPCIONAL)
+  Chave:  console.cloud.google.com
+  Limite: 28.500 loads/mês grátis
+  API:    Maps JavaScript API
+  NOTA:   Se chave inválida, sistema usa MODO DEMO automaticamente
+
+STRIPE (OPCIONAL PARA DEMO)
+  SDK:    js.stripe.com/v3/buy-button.js
+  Custo:  2,9% + R$ 0,39/tx
+  Teste:  4242 4242 4242 4242
+
+================================================================================
+16. REGRAS ABSOLUTAS — NUNCA VIOLAR
+================================================================================
+
+[1] NUNCA mover <script> do Google Maps para HTML estático
+[2] NUNCA remover finally { consultaEmAndamento = false }
+[3] NUNCA usar display:flex/block em resetarPainel() — use removeProperty
+[4] NUNCA chamar inicializarMapa() diretamente — só via initMap callback
+[5] SEMPRE checar modoDemo antes de usar objetos Google Maps
+[6] SEMPRE limpar intervaloTemaAuto com pararTemaAuto() antes de novo
+[7] SEMPRE usar transições CSS para alternar temas (1.5s ease-in-out)
+
+================================================================================
+17. CHECKLIST DE DEPLOY
+================================================================================
+
+PRÉ-DEPLOY (PRODUÇÃO COMPLETA)
+[ ] CONFIG.STRIPE_BUY_BUTTON_ID preenchido
+[ ] CONFIG.STRIPE_PUBLISHABLE_KEY preenchido
+[ ] CONFIG.GOOGLE_MAPS_KEY preenchido
+[ ] URL de sucesso no Stripe configurada
+
+PRÉ-DEPLOY (MODO DEMO)
+[ ] Verificar que modo demo funciona sem chaves
+[ ] Testar alternância de temas
+[ ] Testar clique nos marcadores demo
+[ ] Verificar dados da API Open-Meteo
+
+TESTES OBRIGATÓRIOS
+[ ] Tema Chuva: aurora, gotas coloridas, partículas
+[ ] Tema Sol: sol pulsante, raios girando, sparkles
+[ ] Alternância automática (8s)
+[ ] Botões de tema funcionando
+[ ] Modo demo: mapa visual com marcadores
+[ ] Clique em marcador → painel com dados reais
+[ ] Lista lateral → seleção de local
+[ ] Responsivo: mobile layout funcional
+
+================================================================================
+18. TROUBLESHOOTING
+================================================================================
+
+SINTOMA                          CAUSA                    SOLUÇÃO
+──────────────────────────────────────────────────────────────────────────────
+Temas não alternam               JS error                 Verificar console
+Sol não aparece                  .ativo não adicionado    Verificar ativarTemaSol()
+Gotas sem cor                    Classe não aplicada      Verificar criarGotas()
+Mapa demo vazio                  posicoesDemo errado      Verificar coordenadas %
+Marcador não pulsa               .ativo não adicionado    Verificar consultarPontoDemo()
+Dados não carregam               API offline              Testar Open-Meteo direto
+Transição brusca                 transition não aplicada  Verificar CSS transitions
+
+================================================================================
+FIM DO CONTEXTO — AGENTE DO TEMPO v2.0 VIBRANTE
+================================================================================

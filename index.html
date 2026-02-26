@@ -1,0 +1,2617 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agente do Tempo - Previsão de Chuva Interativa</title>
+  <meta name="description" content="Consulte a previsão de chuva em tempo real para qualquer ponto do Brasil. Mapa interativo com locais curados para turismo.">
+
+  <!-- Stripe Buy Button SDK -->
+  <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ========================================================================
+       RESET E VARIÁVEIS
+       ======================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --cor-primaria: #6366f1;
+      --cor-primaria-hover: #4f46e5;
+      --cor-secundaria: #06b6d4;
+      --cor-terciaria: #8b5cf6;
+      --cor-accent: #f43f5e;
+      --cor-fundo: #0f0f23;
+      --cor-fundo-card: rgba(255, 255, 255, 0.08);
+      --cor-texto: #ffffff;
+      --cor-texto-claro: #a5b4fc;
+      --cor-branco: #ffffff;
+      --cor-borda: rgba(255, 255, 255, 0.15);
+      --cor-sucesso: #10b981;
+      --cor-alerta: #f59e0b;
+      --cor-perigo: #ef4444;
+      --cor-critico: #dc2626;
+      --sombra-card: 0 8px 32px rgba(99, 102, 241, 0.25);
+      --sombra-elevada: 0 20px 40px rgba(139, 92, 246, 0.3);
+      --sombra-glow: 0 0 40px rgba(99, 102, 241, 0.5);
+      --raio-borda: 16px;
+      --transicao: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      --gradiente-aurora: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+      --gradiente-card: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--cor-fundo);
+      color: var(--cor-texto);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ========================================================================
+       AURORA BOREAL ANIMADA
+       ======================================================================== */
+    .aurora {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .aurora::before,
+    .aurora::after {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      top: -50%;
+      left: -50%;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 40% 80%, rgba(6, 182, 212, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(244, 63, 94, 0.2) 0%, transparent 50%);
+      animation: aurora-move 20s ease-in-out infinite;
+    }
+
+    .aurora::after {
+      background:
+        radial-gradient(ellipse at 60% 40%, rgba(240, 147, 251, 0.3) 0%, transparent 40%),
+        radial-gradient(ellipse at 20% 60%, rgba(79, 172, 254, 0.3) 0%, transparent 40%);
+      animation: aurora-move 15s ease-in-out infinite reverse;
+    }
+
+    @keyframes aurora-move {
+      0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+      }
+      25% {
+        transform: translate(5%, 5%) rotate(5deg) scale(1.1);
+      }
+      50% {
+        transform: translate(-5%, 10%) rotate(-5deg) scale(1);
+      }
+      75% {
+        transform: translate(10%, -5%) rotate(3deg) scale(1.05);
+      }
+    }
+
+    /* Partículas flutuantes */
+    .particulas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .particula {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--cor-branco);
+      border-radius: 50%;
+      opacity: 0.6;
+      animation: flutuar 8s ease-in-out infinite;
+    }
+
+    @keyframes flutuar {
+      0%, 100% {
+        transform: translateY(0) translateX(0);
+        opacity: 0.3;
+      }
+      50% {
+        transform: translateY(-30px) translateX(20px);
+        opacity: 0.8;
+      }
+    }
+
+    /* ========================================================================
+       TEMA SOL DE VERÃO
+       ======================================================================== */
+    .sol-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .sol-container.ativo {
+      opacity: 1;
+    }
+
+    /* Aurora do sol (fundo quente) */
+    .aurora-sol {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(255, 200, 87, 0.5) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 30%, rgba(255, 107, 107, 0.4) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 80%, rgba(255, 159, 67, 0.3) 0%, transparent 50%),
+        linear-gradient(180deg, #1a1a2e 0%, #2d1b4e 30%, #4a1942 60%, #1a1a2e 100%);
+      animation: aurora-sol-move 15s ease-in-out infinite;
+    }
+
+    @keyframes aurora-sol-move {
+      0%, 100% {
+        filter: hue-rotate(0deg) brightness(1);
+      }
+      50% {
+        filter: hue-rotate(15deg) brightness(1.1);
+      }
+    }
+
+    /* Sol principal */
+    .sol {
+      position: absolute;
+      top: 10%;
+      right: 15%;
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle, #fff9c4 0%, #ffeb3b 30%, #ff9800 60%, #ff5722 100%);
+      border-radius: 50%;
+      box-shadow:
+        0 0 60px rgba(255, 235, 59, 0.8),
+        0 0 100px rgba(255, 152, 0, 0.6),
+        0 0 150px rgba(255, 87, 34, 0.4),
+        0 0 200px rgba(255, 193, 7, 0.3);
+      animation: pulsar-sol 4s ease-in-out infinite;
+    }
+
+    @keyframes pulsar-sol {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow:
+          0 0 60px rgba(255, 235, 59, 0.8),
+          0 0 100px rgba(255, 152, 0, 0.6),
+          0 0 150px rgba(255, 87, 34, 0.4);
+      }
+      50% {
+        transform: scale(1.1);
+        box-shadow:
+          0 0 80px rgba(255, 235, 59, 1),
+          0 0 140px rgba(255, 152, 0, 0.8),
+          0 0 200px rgba(255, 87, 34, 0.5);
+      }
+    }
+
+    /* Raios do sol */
+    .raios-sol {
+      position: absolute;
+      top: 10%;
+      right: 15%;
+      width: 120px;
+      height: 120px;
+      animation: girar-raios 30s linear infinite;
+    }
+
+    .raio {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200px;
+      height: 3px;
+      background: linear-gradient(90deg, rgba(255, 235, 59, 0.8), transparent);
+      transform-origin: left center;
+      border-radius: 2px;
+    }
+
+    @keyframes girar-raios {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Partículas de calor/brilho */
+    .brilho-sol {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: radial-gradient(circle, #fff9c4, #ffeb3b);
+      border-radius: 50%;
+      animation: brilho-flutuar 6s ease-in-out infinite;
+      box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+    }
+
+    @keyframes brilho-flutuar {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: 0.4;
+      }
+      50% {
+        transform: translateY(-40px) scale(1.5);
+        opacity: 1;
+      }
+    }
+
+    /* Ondas de calor */
+    .ondas-calor {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 30%;
+      background: linear-gradient(180deg, transparent 0%, rgba(255, 152, 0, 0.1) 50%, rgba(255, 87, 34, 0.15) 100%);
+      animation: ondas-subir 8s ease-in-out infinite;
+    }
+
+    @keyframes ondas-subir {
+      0%, 100% {
+        transform: translateY(0) scaleY(1);
+        opacity: 0.5;
+      }
+      50% {
+        transform: translateY(-20px) scaleY(1.1);
+        opacity: 0.8;
+      }
+    }
+
+    /* Transição suave da aurora (chuva) */
+    .aurora {
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .aurora.oculto {
+      opacity: 0;
+    }
+
+    .chuva-container {
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .chuva-container.oculto {
+      opacity: 0;
+    }
+
+    .particulas {
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .particulas.oculto {
+      opacity: 0;
+    }
+
+    /* Indicador de tema */
+    .tema-indicador {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 8px 12px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .tema-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .tema-btn:hover {
+      transform: scale(1.15);
+    }
+
+    .tema-btn.ativo {
+      border-color: var(--cor-branco);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    }
+
+    /* ========================================================================
+       ANIMAÇÃO DE CHUVA COLORIDA (LOCKED)
+       ======================================================================== */
+    .chuva-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    .gota {
+      position: absolute;
+      top: -30px;
+      width: 3px;
+      height: 25px;
+      border-radius: 0 0 3px 3px;
+      animation: cair linear infinite;
+      filter: blur(0.5px);
+    }
+
+    .gota.azul {
+      background: linear-gradient(to bottom, transparent, rgba(99, 102, 241, 0.8));
+      box-shadow: 0 0 6px rgba(99, 102, 241, 0.5);
+    }
+
+    .gota.roxo {
+      background: linear-gradient(to bottom, transparent, rgba(139, 92, 246, 0.8));
+      box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+    }
+
+    .gota.cyan {
+      background: linear-gradient(to bottom, transparent, rgba(6, 182, 212, 0.8));
+      box-shadow: 0 0 6px rgba(6, 182, 212, 0.5);
+    }
+
+    .gota.rosa {
+      background: linear-gradient(to bottom, transparent, rgba(240, 147, 251, 0.8));
+      box-shadow: 0 0 6px rgba(240, 147, 251, 0.5);
+    }
+
+    @keyframes cair {
+      0% {
+        transform: translateY(-30px) rotate(10deg);
+        opacity: 0;
+      }
+      5% {
+        opacity: 1;
+      }
+      95% {
+        opacity: 0.8;
+      }
+      100% {
+        transform: translateY(105vh) rotate(10deg);
+        opacity: 0;
+      }
+    }
+
+    /* ========================================================================
+       PÁGINA LOCKED (MARKETING)
+       ======================================================================== */
+    #pagina-locked {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      position: relative;
+      z-index: 3;
+    }
+
+    #pagina-locked.oculto {
+      display: none !important;
+    }
+
+    /* Header Locked */
+    .header-locked {
+      background: rgba(15, 15, 35, 0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--cor-borda);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-locked .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      animation: gradiente-texto 3s ease infinite;
+      background-size: 200% 200%;
+    }
+
+    @keyframes gradiente-texto {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .logo-icon {
+      font-size: 1.8rem;
+      animation: bounce-icon 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce-icon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 6rem 2rem;
+      text-align: center;
+      background: transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero .container {
+      max-width: 900px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 50%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+      animation: brilho-texto 4s ease-in-out infinite;
+    }
+
+    @keyframes brilho-texto {
+      0%, 100% {
+        filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.5));
+      }
+      50% {
+        filter: drop-shadow(0 0 40px rgba(139, 92, 246, 0.8));
+      }
+    }
+
+    .hero p {
+      font-size: 1.35rem;
+      color: var(--cor-texto-claro);
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* EDITE: Preço exibido no hero */
+    .preco-destaque {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #10b981, #06b6d4, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 2rem;
+      animation: pulse-preco 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-preco {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .preco-destaque small {
+      font-size: 1.1rem;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+
+    /* Preview do Mapa (borrado) */
+    .preview-mapa {
+      margin-top: 3rem;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--sombra-glow);
+      position: relative;
+      border: 2px solid var(--cor-borda);
+      transition: var(--transicao);
+    }
+
+    .preview-mapa:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 60px rgba(99, 102, 241, 0.6);
+    }
+
+    .preview-mapa img {
+      width: 100%;
+      height: 350px;
+      object-fit: cover;
+      filter: blur(8px) saturate(1.2);
+    }
+
+    .preview-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.4) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cor-branco);
+      font-size: 1.4rem;
+      font-weight: 700;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+    }
+
+    .preview-overlay::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+      animation: brilho-overlay 3s ease-in-out infinite;
+    }
+
+    @keyframes brilho-overlay {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* Benefícios */
+    .beneficios {
+      padding: 6rem 2rem;
+      background: transparent;
+      position: relative;
+    }
+
+    .beneficios .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .beneficios h2 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 4rem;
+      background: linear-gradient(135deg, #ffffff, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .cards-beneficios {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+
+    .card-beneficio {
+      background: var(--cor-fundo-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 2.5rem;
+      text-align: center;
+      transition: var(--transicao);
+      border: 1px solid var(--cor-borda);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-beneficio::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+      transform: scaleX(0);
+      transition: transform 0.4s ease;
+    }
+
+    .card-beneficio:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: var(--sombra-glow);
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .card-beneficio:hover::before {
+      transform: scaleX(1);
+    }
+
+    .card-beneficio .icone {
+      font-size: 4rem;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+      animation: float-icon 3s ease-in-out infinite;
+    }
+
+    .card-beneficio:nth-child(2) .icone { animation-delay: 0.5s; }
+    .card-beneficio:nth-child(3) .icone { animation-delay: 1s; }
+    .card-beneficio:nth-child(4) .icone { animation-delay: 1.5s; }
+    .card-beneficio:nth-child(5) .icone { animation-delay: 2s; }
+    .card-beneficio:nth-child(6) .icone { animation-delay: 2.5s; }
+
+    @keyframes float-icon {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(5deg); }
+    }
+
+    .card-beneficio h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.75rem;
+      color: var(--cor-texto);
+      font-weight: 700;
+    }
+
+    .card-beneficio p {
+      color: var(--cor-texto-claro);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    /* Seção de Compra */
+    .secao-compra {
+      padding: 6rem 2rem;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+      color: var(--cor-branco);
+      text-align: center;
+      position: relative;
+      border-top: 1px solid var(--cor-borda);
+      border-bottom: 1px solid var(--cor-borda);
+    }
+
+    .secao-compra::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
+      filter: blur(40px);
+    }
+
+    .secao-compra .container {
+      max-width: 700px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .secao-compra h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      font-weight: 800;
+    }
+
+    .secao-compra p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      margin-bottom: 2.5rem;
+    }
+
+    /* EDITE: Preço na seção de compra */
+    .secao-compra .preco {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 2.5rem;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .secao-compra .preco small {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    #stripe-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    #btn-demo-stripe {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: var(--cor-branco);
+      border: none;
+      padding: 1.25rem 3rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: var(--transicao);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+    }
+
+    #btn-demo-stripe::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.5s ease;
+    }
+
+    #btn-demo-stripe:hover {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 20px 40px rgba(99, 102, 241, 0.6);
+    }
+
+    #btn-demo-stripe:hover::before {
+      left: 100%;
+    }
+
+    .garantia {
+      font-size: 1rem;
+      opacity: 0.8;
+      margin-top: 1.5rem;
+      color: var(--cor-texto-claro);
+    }
+
+    /* Footer */
+    .footer-locked {
+      background: rgba(15, 15, 35, 0.9);
+      color: var(--cor-branco);
+      padding: 3rem 2rem;
+      text-align: center;
+      border-top: 1px solid var(--cor-borda);
+    }
+
+    .footer-locked p {
+      opacity: 0.7;
+      font-size: 1rem;
+      color: var(--cor-texto-claro);
+    }
+
+    /* ========================================================================
+       PÁGINA UNLOCKED (APP)
+       ======================================================================== */
+    #pagina-unlocked {
+      display: none;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    #pagina-unlocked.ativo {
+      display: flex;
+    }
+
+    /* Header App */
+    .header-app {
+      background: var(--cor-branco);
+      padding: 0.75rem 1.5rem;
+      box-shadow: var(--sombra-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .header-app .logo {
+      font-size: 1.25rem;
+    }
+
+    .btn-sair {
+      background: transparent;
+      border: 1px solid var(--cor-borda);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--cor-texto-claro);
+      transition: var(--transicao);
+    }
+
+    .btn-sair:hover {
+      background: var(--cor-fundo);
+      color: var(--cor-texto);
+    }
+
+    /* Container Principal */
+    .app-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 380px;
+      background: var(--cor-branco);
+      border-right: 1px solid var(--cor-borda);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* Sidebar Welcome */
+    #sidebar-welcome {
+      padding: 2rem;
+      text-align: center;
+    }
+
+    #sidebar-welcome.oculto {
+      display: none;
+    }
+
+    #sidebar-welcome h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: var(--cor-texto);
+    }
+
+    #sidebar-welcome p {
+      color: var(--cor-texto-claro);
+      font-size: 0.95rem;
+    }
+
+    .hint-clique {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #e0f2fe;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--cor-primaria);
+    }
+
+    /* Sidebar Marcadores */
+    #sidebar-marcadores {
+      flex: 1;
+      overflow-y: auto;
+      display: none;
+    }
+
+    #sidebar-marcadores.ativo {
+      display: block;
+    }
+
+    .sidebar-titulo {
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      color: var(--cor-texto);
+      border-bottom: 1px solid var(--cor-borda);
+      position: sticky;
+      top: 0;
+      background: var(--cor-branco);
+      z-index: 1;
+    }
+
+    .lista-locais {
+      padding: 0.5rem;
+    }
+
+    .item-local {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transicao);
+      gap: 0.75rem;
+    }
+
+    .item-local:hover {
+      background: var(--cor-fundo);
+    }
+
+    .item-local .icone-tipo {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .item-local .info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-local .nome {
+      font-weight: 500;
+      color: var(--cor-texto);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-local .estado {
+      font-size: 0.8rem;
+      color: var(--cor-texto-claro);
+    }
+
+    .item-local .chuva-badge {
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .item-local .chuva-badge.carregando {
+      background: var(--cor-fundo);
+      color: var(--cor-texto-claro);
+    }
+
+    /* Painel de Dados */
+    #data-panel {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #data-panel.ativo {
+      display: flex;
+    }
+
+    .painel-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--cor-borda);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .painel-header h3 {
+      font-size: 1rem;
+      color: var(--cor-texto);
+    }
+
+    .btn-reset {
+      background: transparent;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--cor-texto-claro);
+      padding: 0.25rem;
+      border-radius: 4px;
+      transition: var(--transicao);
+    }
+
+    .btn-reset:hover {
+      background: var(--cor-fundo);
+      color: var(--cor-texto);
+    }
+
+    #painel-conteudo {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    /* Coordenadas */
+    .coords {
+      font-size: 0.85rem;
+      color: var(--cor-texto-claro);
+      margin-bottom: 1rem;
+    }
+
+    /* Card Principal de Classificação */
+    .card-classificacao {
+      border-radius: var(--raio-borda);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      color: var(--cor-branco);
+      transition: var(--transicao);
+    }
+
+    .card-classificacao .icone-grande {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-classificacao .label {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .card-classificacao .descricao {
+      font-size: 0.95rem;
+      opacity: 0.9;
+    }
+
+    /* Métricas */
+    .metricas-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .metrica {
+      background: var(--cor-fundo);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .metrica .valor {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--cor-texto);
+    }
+
+    .metrica .rotulo {
+      font-size: 0.8rem;
+      color: var(--cor-texto-claro);
+      margin-top: 0.25rem;
+    }
+
+    /* Previsão */
+    .secao-previsao h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--cor-texto);
+    }
+
+    .barras-previsao {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .barra-dia {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .barra-dia .dia {
+      width: 60px;
+      font-size: 0.85rem;
+      color: var(--cor-texto-claro);
+      flex-shrink: 0;
+    }
+
+    .barra-dia .barra-container {
+      flex: 1;
+      height: 24px;
+      background: var(--cor-fundo);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .barra-dia .barra-preenchimento {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .barra-dia .valor-mm {
+      width: 50px;
+      text-align: right;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--cor-texto);
+      flex-shrink: 0;
+    }
+
+    /* Recomendação */
+    .recomendacao {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #fef3c7;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #92400e;
+    }
+
+    .recomendacao.sucesso {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .recomendacao.perigo {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Spinner */
+    .spinner-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+    }
+
+    .spinner-container.ativo {
+      display: flex;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--cor-fundo);
+      border-top-color: var(--cor-primaria);
+      border-radius: 50%;
+      animation: girar 1s linear infinite;
+    }
+
+    @keyframes girar {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner-texto {
+      margin-top: 1rem;
+      color: var(--cor-texto-claro);
+      font-size: 0.9rem;
+    }
+
+    /* Mapa */
+    .mapa-container {
+      flex: 1;
+      position: relative;
+    }
+
+    #mapa {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Mapa Demo (sem Google Maps) */
+    .mapa-demo {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mapa-demo-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(ellipse at 30% 40%, rgba(99, 102, 241, 0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 60%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 40%);
+      animation: mapa-pulse 8s ease-in-out infinite;
+    }
+
+    @keyframes mapa-pulse {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+
+    /* Brasil SVG simplificado */
+    .brasil-outline {
+      position: absolute;
+      width: 60%;
+      max-width: 400px;
+      height: auto;
+      opacity: 0.3;
+      filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.5));
+    }
+
+    /* Marcadores no mapa demo */
+    .marcador-demo {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 50%;
+      border: 3px solid white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
+      z-index: 10;
+    }
+
+    .marcador-demo:hover {
+      transform: scale(1.3);
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.9);
+    }
+
+    .marcador-demo.ativo {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+      animation: pulse-marcador 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-marcador {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    .marcador-demo .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      margin-bottom: 5px;
+    }
+
+    .marcador-demo:hover .tooltip {
+      opacity: 1;
+    }
+
+    /* Grid de coordenadas decorativo */
+    .grid-coords {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image:
+        linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px);
+      background-size: 50px 50px;
+      opacity: 0.5;
+    }
+
+    /* Texto de instrução */
+    .mapa-instrucao {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(99, 102, 241, 0.2);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 30px;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: var(--cor-texto-claro);
+      font-size: 0.9rem;
+      z-index: 10;
+      animation: bounce-hint 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce-hint {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-5px); }
+    }
+
+    /* Hint do Mapa (mobile) */
+    .hint-mapa {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: var(--cor-branco);
+      padding: 0.75rem 1.5rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      z-index: 10;
+      pointer-events: none;
+      animation: pulsar 2s ease-in-out infinite;
+    }
+
+    @keyframes pulsar {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Erro Crítico */
+    .erro-critico {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .erro-critico.ativo {
+      display: flex;
+    }
+
+    .erro-critico-conteudo {
+      background: var(--cor-branco);
+      padding: 2rem;
+      border-radius: var(--raio-borda);
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .erro-critico-conteudo h3 {
+      color: var(--cor-perigo);
+      margin-bottom: 1rem;
+    }
+
+    .erro-critico-conteudo p {
+      color: var(--cor-texto-claro);
+      margin-bottom: 1.5rem;
+    }
+
+    .erro-critico-conteudo button {
+      background: var(--cor-primaria);
+      color: var(--cor-branco);
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* ========================================================================
+       RESPONSIVO
+       ======================================================================== */
+    @media (max-width: 768px) {
+      .hero {
+        padding: 4rem 1.5rem;
+      }
+
+      .hero h1 {
+        font-size: 2rem;
+        line-height: 1.3;
+      }
+
+      .hero p {
+        font-size: 1rem;
+      }
+
+      .preco-destaque {
+        font-size: 1.8rem;
+      }
+
+      .preview-mapa img {
+        height: 250px;
+      }
+
+      .beneficios {
+        padding: 4rem 1.5rem;
+      }
+
+      .beneficios h2 {
+        font-size: 1.8rem;
+        margin-bottom: 2.5rem;
+      }
+
+      .cards-beneficios {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+
+      .card-beneficio {
+        padding: 2rem;
+      }
+
+      .card-beneficio .icone {
+        font-size: 3rem;
+      }
+
+      .secao-compra {
+        padding: 4rem 1.5rem;
+      }
+
+      .secao-compra h2 {
+        font-size: 1.8rem;
+      }
+
+      .secao-compra .preco {
+        font-size: 2.5rem;
+      }
+
+      #btn-demo-stripe {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+      }
+
+      /* App Mobile */
+      .app-container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid var(--cor-borda);
+      }
+
+      #sidebar-welcome {
+        padding: 1rem;
+      }
+
+      #sidebar-welcome h2 {
+        font-size: 1.1rem;
+      }
+
+      .hint-clique {
+        display: none;
+      }
+
+      .hint-mapa {
+        display: block;
+      }
+
+      .mapa-container {
+        min-height: 50vh;
+      }
+
+      #painel-conteudo {
+        padding: 1rem;
+      }
+
+      .metricas-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+
+      .metrica {
+        padding: 0.75rem;
+      }
+
+      .metrica .valor {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ======================================================================
+       PÁGINA LOCKED (MARKETING + PAYWALL)
+       ====================================================================== -->
+  <!-- Aurora Boreal Animada (Chuva) -->
+  <div class="aurora" id="aurora"></div>
+
+  <!-- Partículas Flutuantes (Chuva) -->
+  <div class="particulas" id="particulas"></div>
+
+  <!-- Tema Sol de Verão -->
+  <div class="sol-container" id="sol-container">
+    <div class="aurora-sol"></div>
+    <div class="ondas-calor"></div>
+    <div class="raios-sol" id="raios-sol"></div>
+    <div class="sol"></div>
+    <div id="brilhos-sol"></div>
+  </div>
+
+  <!-- Indicador/Toggle de Tema -->
+  <div class="tema-indicador">
+    <button class="tema-btn ativo" id="btn-chuva" onclick="ativarTemaChuva()" title="Tema Chuva">🌧️</button>
+    <button class="tema-btn" id="btn-sol" onclick="ativarTemaSol()" title="Tema Sol">☀️</button>
+    <button class="tema-btn" id="btn-auto" onclick="ativarTemaAuto()" title="Alternar Automático">🔄</button>
+  </div>
+
+  <div id="pagina-locked">
+    <!-- Animação de Chuva Colorida -->
+    <div class="chuva-container" id="chuva-container"></div>
+
+    <!-- Header -->
+    <header class="header-locked">
+      <div class="container">
+        <a href="#" class="logo">
+          <span class="logo-icon">🌧️</span>
+          <span>Agente do Tempo</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container">
+        <!-- EDITE: Título principal -->
+        <h1>Saiba se vai chover antes de sair de casa</h1>
+        <!-- EDITE: Subtítulo -->
+        <p>Previsão de chuva em tempo real para qualquer ponto do Brasil. Planeje suas viagens, passeios e atividades ao ar livre com precisão.</p>
+
+        <!-- EDITE: Preço no hero -->
+        <div class="preco-destaque">
+          R$ 19,90<small>/mês</small>
+        </div>
+
+        <!-- Preview do Mapa -->
+        <div class="preview-mapa">
+          <img src="https://maps.googleapis.com/maps/api/staticmap?center=-14.235,-51.925&zoom=4&size=800x300&maptype=hybrid&key=AIzaSyBFw0Qbyq9zTFTd-tUY6CE" alt="Preview do Mapa" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 300%22><rect fill=%22%230066cc%22 width=%22800%22 height=%22300%22/><text x=%22400%22 y=%22150%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2224%22>Mapa do Brasil</text></svg>'">
+          <div class="preview-overlay">
+            🔒 Acesse o mapa interativo completo
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Benefícios -->
+    <section class="beneficios">
+      <div class="container">
+        <h2>Por que usar o Agente do Tempo?</h2>
+        <div class="cards-beneficios">
+          <div class="card-beneficio">
+            <div class="icone">📍</div>
+            <h3>Clique em Qualquer Lugar</h3>
+            <p>Consulte a previsão de chuva para qualquer coordenada do Brasil com um simples clique no mapa.</p>
+          </div>
+          <div class="card-beneficio">
+            <div class="icone">🏖️</div>
+            <h3>Locais Curados</h3>
+            <p>Acesse rapidamente praias, rios, cachoeiras e lagos populares já mapeados para você.</p>
+          </div>
+          <div class="card-beneficio">
+            <div class="icone">⏱️</div>
+            <h3>Tempo Real</h3>
+            <p>Dados atualizados constantemente com informações de precipitação, vento e temperatura.</p>
+          </div>
+          <div class="card-beneficio">
+            <div class="icone">📊</div>
+            <h3>Previsão de 3 Dias</h3>
+            <p>Veja a tendência de chuva para os próximos dias e planeje suas atividades com antecedência.</p>
+          </div>
+          <div class="card-beneficio">
+            <div class="icone">🎯</div>
+            <h3>Classificação Inteligente</h3>
+            <p>Sistema de cores indica o risco de chuva: de nulo a crítico, você sabe exatamente o que esperar.</p>
+          </div>
+          <div class="card-beneficio">
+            <div class="icone">📱</div>
+            <h3>Funciona em Qualquer Dispositivo</h3>
+            <p>Acesse pelo celular, tablet ou computador. Interface otimizada para todas as telas.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção de Compra -->
+    <section class="secao-compra">
+      <div class="container">
+        <h2>Comece a usar agora</h2>
+        <p>Acesso ilimitado ao mapa interativo e todos os recursos</p>
+
+        <!-- EDITE: Preço na seção de compra -->
+        <div class="preco">
+          R$ 19,90<small>/mês</small>
+        </div>
+
+        <div id="stripe-container">
+          <!-- Stripe Buy Button será injetado aqui -->
+          <button id="btn-demo-stripe" onclick="ativarDemo()">
+            🎉 Testar Demonstração Grátis
+          </button>
+        </div>
+
+        <p class="garantia">✓ Cancele quando quiser · ✓ Pagamento seguro via Stripe</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-locked">
+      <p>© 2024 Agente do Tempo. Dados meteorológicos por Open-Meteo.</p>
+    </footer>
+  </div>
+
+  <!-- ======================================================================
+       PÁGINA UNLOCKED (APP)
+       ====================================================================== -->
+  <div id="pagina-unlocked">
+    <!-- Header App -->
+    <header class="header-app">
+      <a href="#" class="logo" onclick="event.preventDefault()">
+        <span class="logo-icon">🌧️</span>
+        <span>Agente do Tempo</span>
+      </a>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </header>
+
+    <!-- Container Principal -->
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- Welcome (estado inicial) -->
+        <div id="sidebar-welcome">
+          <h2>Bem-vindo ao Agente do Tempo!</h2>
+          <p>Clique em qualquer ponto do mapa para ver a previsão de chuva, ou escolha um dos locais curados abaixo.</p>
+          <div class="hint-clique">
+            💡 Dica: Clique em qualquer lugar do mapa para consultar
+          </div>
+        </div>
+
+        <!-- Lista de Marcadores -->
+        <div id="sidebar-marcadores">
+          <div class="sidebar-titulo">📍 Locais Populares</div>
+          <div class="lista-locais" id="lista-locais">
+            <!-- Preenchido dinamicamente -->
+          </div>
+        </div>
+
+        <!-- Painel de Dados -->
+        <div id="data-panel">
+          <div class="painel-header">
+            <h3 id="painel-titulo">Carregando...</h3>
+            <button class="btn-reset" onclick="resetarPainel()" title="Fechar">✕</button>
+          </div>
+
+          <!-- Spinner -->
+          <div class="spinner-container" id="spinner">
+            <div class="spinner"></div>
+            <p class="spinner-texto">Consultando dados meteorológicos...</p>
+          </div>
+
+          <!-- Conteúdo -->
+          <div id="painel-conteudo">
+            <p class="coords" id="coords"></p>
+
+            <div class="card-classificacao" id="card-classificacao">
+              <div class="icone-grande" id="icone-classificacao">🌤️</div>
+              <div class="label" id="label-classificacao">Carregando</div>
+              <div class="descricao" id="desc-classificacao">Aguarde...</div>
+            </div>
+
+            <div class="metricas-grid">
+              <div class="metrica">
+                <div class="valor" id="mm-agora">--</div>
+                <div class="rotulo">mm agora</div>
+              </div>
+              <div class="metrica">
+                <div class="valor" id="prob-chuva">--</div>
+                <div class="rotulo">probabilidade</div>
+              </div>
+              <div class="metrica">
+                <div class="valor" id="vento">--</div>
+                <div class="rotulo">vento km/h</div>
+              </div>
+              <div class="metrica">
+                <div class="valor" id="temp">--</div>
+                <div class="rotulo">temperatura</div>
+              </div>
+            </div>
+
+            <div class="secao-previsao">
+              <h4>Próximos dias</h4>
+              <div class="barras-previsao" id="barras-previsao">
+                <!-- Preenchido dinamicamente -->
+              </div>
+            </div>
+
+            <div class="recomendacao" id="recomendacao">
+              Carregando recomendação...
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Mapa -->
+      <div class="mapa-container">
+        <div id="mapa"></div>
+        <div class="hint-mapa">👆 Toque no mapa para consultar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Erro Crítico -->
+  <div class="erro-critico" id="erro-critico">
+    <div class="erro-critico-conteudo">
+      <h3>⚠️ Erro de Configuração</h3>
+      <p id="erro-mensagem">Não foi possível carregar o mapa.</p>
+      <button onclick="location.reload()">Tentar Novamente</button>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       JAVASCRIPT
+       ====================================================================== -->
+  <script>
+    // =========================================================================
+    // CONFIGURAÇÃO CENTRAL
+    // =========================================================================
+    const CONFIG = {
+      // (!) STRIPE — dashboard.stripe.com > Products > Buy Button
+      STRIPE_BUY_BUTTON_ID: "buy_btn_XXXXXXXXXXXXXXXX",
+      STRIPE_PUBLISHABLE_KEY: "pk_live_XXXXXXXXXXXXXXXXX",
+      SUCCESS_PARAM: "acesso=liberado",
+
+      // (!) GOOGLE MAPS — console.cloud.google.com
+      // APIs necessárias: Maps JavaScript API
+      GOOGLE_MAPS_KEY: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXX",
+
+      // Open-Meteo (sem chave necessária)
+      WEATHER_API: "https://api.open-meteo.com/v1/forecast",
+
+      // Configurações do mapa
+      MAP_CENTER: { lat: -14.235, lng: -51.925 },
+      MAP_ZOOM: 5,
+
+      // Configurações gerais
+      SITE_NAME: "Agente do Tempo",
+      PRICE_DISPLAY: "R$ 19,90/mês",
+      CACHE_MIN: 30,
+
+      // Locais curados
+      // Formato: { id, name, lat, lng, tipo, estado }
+      // tipo: "praia" | "rio" | "cachoeira" | "lago"
+      LOCATIONS: [
+        { id: "alter-chao", name: "Alter do Chão", lat: -2.5227, lng: -54.9493, tipo: "praia", estado: "PA" },
+        { id: "jericoacoara", name: "Jericoacoara", lat: -2.7964, lng: -40.5117, tipo: "praia", estado: "CE" },
+        { id: "fernando-noronha", name: "Fernando de Noronha", lat: -3.8554, lng: -32.4280, tipo: "praia", estado: "PE" },
+        { id: "porto-seguro", name: "Porto Seguro", lat: -16.4435, lng: -39.0653, tipo: "praia", estado: "BA" },
+        { id: "bonito", name: "Bonito", lat: -21.1267, lng: -56.4836, tipo: "rio", estado: "MS" },
+        { id: "chapada-diamantina", name: "Chapada Diamantina", lat: -12.5275, lng: -41.4692, tipo: "cachoeira", estado: "BA" },
+        { id: "foz-iguacu", name: "Foz do Iguaçu", lat: -25.5163, lng: -54.5854, tipo: "cachoeira", estado: "PR" },
+        { id: "lencois-maranhenses", name: "Lençóis Maranhenses", lat: -2.4833, lng: -43.1167, tipo: "lago", estado: "MA" },
+        { id: "gramado", name: "Gramado", lat: -29.3792, lng: -50.8761, tipo: "lago", estado: "RS" },
+        { id: "florianopolis", name: "Florianópolis", lat: -27.5954, lng: -48.5480, tipo: "praia", estado: "SC" },
+        { id: "buzios", name: "Búzios", lat: -22.7469, lng: -41.8817, tipo: "praia", estado: "RJ" },
+        { id: "paraty", name: "Paraty", lat: -23.2178, lng: -44.7131, tipo: "praia", estado: "RJ" },
+        { id: "ilhabela", name: "Ilhabela", lat: -23.7785, lng: -45.3581, tipo: "praia", estado: "SP" },
+        { id: "brotas", name: "Brotas", lat: -22.2833, lng: -48.1167, tipo: "cachoeira", estado: "SP" },
+        { id: "capitolio", name: "Capitólio", lat: -20.6147, lng: -46.0489, tipo: "lago", estado: "MG" },
+      ],
+    };
+
+    // Ícones por tipo de local
+    const ICONES = {
+      praia: "🏖️",
+      rio: "🏞️",
+      cachoeira: "💧",
+      lago: "🌊",
+    };
+
+    // =========================================================================
+    // VARIÁVEIS GLOBAIS
+    // =========================================================================
+    let map = null;
+    let marcadorAtual = null;
+    let marcadoresCurados = [];
+    let pendingLocalId = null;
+    let mapsApiCarregada = false;
+    let consultaEmAndamento = false;
+    let cancelarCarga = false;
+    const _fetchEmAndamento = new Map();
+
+    // =========================================================================
+    // INICIALIZAÇÃO
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      injetarStripeButton();
+      criarGotas();
+      criarParticulas();
+      criarRaiosSol();
+      criarBrilhosSol();
+
+      if (verificarAcesso()) {
+        ativarUnlocked();
+        carregarGoogleMapsApi();
+      } else {
+        ativarLocked();
+      }
+    });
+
+    // =========================================================================
+    // VERIFICAÇÃO DE ACESSO
+    // =========================================================================
+    function verificarAcesso() {
+      const params = new URLSearchParams(window.location.search);
+
+      // Verifica parâmetro de sucesso do Stripe
+      if (params.get('acesso') === 'liberado') {
+        localStorage.setItem('agentedotempo_acesso', 'true');
+        // Limpa URL
+        history.replaceState({}, document.title, window.location.pathname);
+        return true;
+      }
+
+      // Verifica localStorage
+      return localStorage.getItem('agentedotempo_acesso') === 'true';
+    }
+
+    // =========================================================================
+    // ESTADOS DA PÁGINA
+    // =========================================================================
+    function ativarLocked() {
+      document.getElementById('pagina-locked').classList.remove('oculto');
+      document.getElementById('pagina-unlocked').classList.remove('ativo');
+      document.body.style.overflow = '';
+    }
+
+    function ativarUnlocked() {
+      document.getElementById('pagina-locked').classList.add('oculto');
+      document.getElementById('pagina-unlocked').classList.add('ativo');
+      document.body.style.overflow = 'hidden';
+      cancelarCarga = false;
+      renderizarListaLocais();
+    }
+
+    function ativarDemo() {
+      localStorage.setItem('agentedotempo_acesso', 'true');
+      ativarUnlocked();
+      carregarGoogleMapsApi();
+    }
+
+    // =========================================================================
+    // STRIPE BUTTON
+    // =========================================================================
+    function injetarStripeButton() {
+      const container = document.getElementById('stripe-container');
+      const btnDemo = document.getElementById('btn-demo-stripe');
+
+      // Se as chaves são placeholders, mantém o botão de demo
+      if (CONFIG.STRIPE_BUY_BUTTON_ID.includes('XXXX') ||
+          CONFIG.STRIPE_PUBLISHABLE_KEY.includes('XXXX')) {
+        return;
+      }
+
+      // Injeta o Stripe Buy Button real
+      container.innerHTML = `
+        <stripe-buy-button
+          buy-button-id="${CONFIG.STRIPE_BUY_BUTTON_ID}"
+          publishable-key="${CONFIG.STRIPE_PUBLISHABLE_KEY}"
+        ></stripe-buy-button>
+      `;
+    }
+
+    // =========================================================================
+    // ANIMAÇÃO DE CHUVA COLORIDA
+    // =========================================================================
+    function criarGotas() {
+      const container = document.getElementById('chuva-container');
+      const numGotas = 60; // Mais gotas para efeito mais dramático
+      const cores = ['azul', 'roxo', 'cyan', 'rosa'];
+
+      for (let i = 0; i < numGotas; i++) {
+        const gota = document.createElement('div');
+        const corAleatoria = cores[Math.floor(Math.random() * cores.length)];
+        gota.className = `gota ${corAleatoria}`;
+        gota.style.left = `${Math.random() * 100}%`;
+        gota.style.animationDuration = `${0.8 + Math.random() * 1.2}s`;
+        gota.style.animationDelay = `${Math.random() * 3}s`;
+        gota.style.height = `${15 + Math.random() * 20}px`;
+        container.appendChild(gota);
+      }
+    }
+
+    // =========================================================================
+    // PARTÍCULAS FLUTUANTES
+    // =========================================================================
+    function criarParticulas() {
+      const container = document.getElementById('particulas');
+      const numParticulas = 25;
+
+      for (let i = 0; i < numParticulas; i++) {
+        const particula = document.createElement('div');
+        particula.className = 'particula';
+        particula.style.left = `${Math.random() * 100}%`;
+        particula.style.top = `${Math.random() * 100}%`;
+        particula.style.animationDuration = `${5 + Math.random() * 10}s`;
+        particula.style.animationDelay = `${Math.random() * 5}s`;
+        particula.style.width = `${2 + Math.random() * 4}px`;
+        particula.style.height = particula.style.width;
+        particula.style.background = `hsl(${220 + Math.random() * 60}, 80%, 70%)`;
+        container.appendChild(particula);
+      }
+    }
+
+    // =========================================================================
+    // TEMA SOL DE VERÃO
+    // =========================================================================
+    let temaAtual = 'chuva';
+    let intervaloTemaAuto = null;
+
+    function criarRaiosSol() {
+      const container = document.getElementById('raios-sol');
+      const numRaios = 12;
+
+      for (let i = 0; i < numRaios; i++) {
+        const raio = document.createElement('div');
+        raio.className = 'raio';
+        raio.style.transform = `rotate(${i * (360 / numRaios)}deg)`;
+        raio.style.opacity = `${0.3 + Math.random() * 0.5}`;
+        container.appendChild(raio);
+      }
+    }
+
+    function criarBrilhosSol() {
+      const container = document.getElementById('brilhos-sol');
+      const numBrilhos = 20;
+
+      for (let i = 0; i < numBrilhos; i++) {
+        const brilho = document.createElement('div');
+        brilho.className = 'brilho-sol';
+        brilho.style.left = `${10 + Math.random() * 80}%`;
+        brilho.style.top = `${10 + Math.random() * 80}%`;
+        brilho.style.animationDuration = `${4 + Math.random() * 6}s`;
+        brilho.style.animationDelay = `${Math.random() * 4}s`;
+        brilho.style.width = `${4 + Math.random() * 6}px`;
+        brilho.style.height = brilho.style.width;
+        container.appendChild(brilho);
+      }
+    }
+
+    function ativarTemaChuva() {
+      temaAtual = 'chuva';
+      pararTemaAuto();
+
+      // Mostrar elementos de chuva
+      document.getElementById('aurora').classList.remove('oculto');
+      document.getElementById('particulas').classList.remove('oculto');
+      document.getElementById('chuva-container').classList.remove('oculto');
+
+      // Esconder sol
+      document.getElementById('sol-container').classList.remove('ativo');
+
+      // Atualizar botões
+      document.getElementById('btn-chuva').classList.add('ativo');
+      document.getElementById('btn-sol').classList.remove('ativo');
+      document.getElementById('btn-auto').classList.remove('ativo');
+    }
+
+    function ativarTemaSol() {
+      temaAtual = 'sol';
+      pararTemaAuto();
+
+      // Esconder elementos de chuva
+      document.getElementById('aurora').classList.add('oculto');
+      document.getElementById('particulas').classList.add('oculto');
+      document.getElementById('chuva-container').classList.add('oculto');
+
+      // Mostrar sol
+      document.getElementById('sol-container').classList.add('ativo');
+
+      // Atualizar botões
+      document.getElementById('btn-chuva').classList.remove('ativo');
+      document.getElementById('btn-sol').classList.add('ativo');
+      document.getElementById('btn-auto').classList.remove('ativo');
+    }
+
+    function ativarTemaAuto() {
+      pararTemaAuto();
+
+      document.getElementById('btn-chuva').classList.remove('ativo');
+      document.getElementById('btn-sol').classList.remove('ativo');
+      document.getElementById('btn-auto').classList.add('ativo');
+
+      // Alternar imediatamente
+      alternarTema();
+
+      // Configurar intervalo (alterna a cada 8 segundos)
+      intervaloTemaAuto = setInterval(alternarTema, 8000);
+    }
+
+    function alternarTema() {
+      if (temaAtual === 'chuva') {
+        temaAtual = 'sol';
+        document.getElementById('aurora').classList.add('oculto');
+        document.getElementById('particulas').classList.add('oculto');
+        document.getElementById('chuva-container').classList.add('oculto');
+        document.getElementById('sol-container').classList.add('ativo');
+      } else {
+        temaAtual = 'chuva';
+        document.getElementById('aurora').classList.remove('oculto');
+        document.getElementById('particulas').classList.remove('oculto');
+        document.getElementById('chuva-container').classList.remove('oculto');
+        document.getElementById('sol-container').classList.remove('ativo');
+      }
+    }
+
+    function pararTemaAuto() {
+      if (intervaloTemaAuto) {
+        clearInterval(intervaloTemaAuto);
+        intervaloTemaAuto = null;
+      }
+    }
+
+    // =========================================================================
+    // GOOGLE MAPS API / MODO DEMO
+    // =========================================================================
+    let modoDemo = false;
+
+    function carregarGoogleMapsApi() {
+      // Se chave inválida, usar modo demo
+      if (!CONFIG.GOOGLE_MAPS_KEY || CONFIG.GOOGLE_MAPS_KEY.includes('XXXX')) {
+        inicializarMapaDemo();
+        return;
+      }
+
+      if (mapsApiCarregada) {
+        if (map) return;
+        inicializarMapa();
+        return;
+      }
+
+      // Injeta script dinamicamente
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_KEY}&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        // Fallback para modo demo se falhar
+        inicializarMapaDemo();
+      };
+      document.head.appendChild(script);
+
+      mapsApiCarregada = true;
+    }
+
+    // Callback global para Google Maps API
+    window.initMap = function() {
+      inicializarMapa();
+    };
+
+    function inicializarMapa() {
+      const mapDiv = document.getElementById('mapa');
+
+      map = new google.maps.Map(mapDiv, {
+        center: CONFIG.MAP_CENTER,
+        zoom: CONFIG.MAP_ZOOM,
+        mapTypeId: 'hybrid',
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+          position: google.maps.ControlPosition.TOP_RIGHT,
+        },
+        fullscreenControl: false,
+        streetViewControl: false,
+      });
+
+      // Listener de clique no mapa
+      map.addListener('click', (e) => {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+        consultarPonto(lat, lng);
+      });
+
+      // Adiciona marcadores curados
+      adicionarMarcadoresCurados();
+
+      // Resolve pendingLocalId se existir
+      if (pendingLocalId) {
+        setTimeout(() => {
+          const local = CONFIG.LOCATIONS.find(l => l.id === pendingLocalId);
+          if (local) {
+            consultarPonto(local.lat, local.lng, local.name);
+            map.panTo({ lat: local.lat, lng: local.lng });
+            map.setZoom(10);
+          }
+          pendingLocalId = null;
+        }, 300);
+      }
+
+      // Carrega chuva dos locais curados
+      carregarChuvaLocais();
+    }
+
+    // =========================================================================
+    // MODO DEMO (SEM GOOGLE MAPS)
+    // =========================================================================
+    function inicializarMapaDemo() {
+      modoDemo = true;
+      const mapDiv = document.getElementById('mapa');
+
+      // Posições aproximadas dos locais no mapa (em %)
+      const posicoesDemo = {
+        'alter-chao': { x: 35, y: 25 },
+        'jericoacoara': { x: 62, y: 22 },
+        'fernando-noronha': { x: 75, y: 28 },
+        'porto-seguro': { x: 68, y: 52 },
+        'bonito': { x: 38, y: 62 },
+        'chapada-diamantina': { x: 58, y: 45 },
+        'foz-iguacu': { x: 40, y: 72 },
+        'lencois-maranhenses': { x: 55, y: 20 },
+        'gramado': { x: 42, y: 80 },
+        'florianopolis': { x: 52, y: 76 },
+        'buzios': { x: 62, y: 62 },
+        'paraty': { x: 55, y: 64 },
+        'ilhabela': { x: 52, y: 65 },
+        'brotas': { x: 48, y: 62 },
+        'capitolio': { x: 50, y: 58 },
+      };
+
+      mapDiv.innerHTML = `
+        <div class="mapa-demo">
+          <div class="mapa-demo-bg"></div>
+          <div class="grid-coords"></div>
+
+          <!-- Brasil SVG -->
+          <svg class="brasil-outline" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+            <path d="M30,15 Q25,20 28,30 Q20,35 22,45 Q18,55 25,65 Q30,75 40,80 Q50,85 60,78 Q70,70 72,60 Q78,50 75,40 Q80,30 70,25 Q60,18 50,15 Q40,12 30,15 Z"
+                  fill="none"
+                  stroke="rgba(99, 102, 241, 0.5)"
+                  stroke-width="0.5"/>
+          </svg>
+
+          <!-- Marcadores -->
+          <div id="marcadores-demo"></div>
+
+          <div class="mapa-instrucao">
+            👆 Clique nos pontos ou escolha na lista lateral
+          </div>
+        </div>
+      `;
+
+      // Adicionar marcadores demo
+      const marcadoresContainer = document.getElementById('marcadores-demo');
+      CONFIG.LOCATIONS.forEach(local => {
+        const pos = posicoesDemo[local.id] || { x: 50, y: 50 };
+        const marcador = document.createElement('div');
+        marcador.className = 'marcador-demo';
+        marcador.id = `marcador-demo-${local.id}`;
+        marcador.style.left = `${pos.x}%`;
+        marcador.style.top = `${pos.y}%`;
+        marcador.innerHTML = `<span class="tooltip">${ICONES[local.tipo]} ${local.name}</span>`;
+        marcador.onclick = () => consultarPontoDemo(local);
+        marcadoresContainer.appendChild(marcador);
+      });
+
+      // Carrega dados dos locais
+      carregarChuvaLocais();
+    }
+
+    function consultarPontoDemo(local) {
+      // Remove marcador ativo anterior
+      document.querySelectorAll('.marcador-demo.ativo').forEach(m => m.classList.remove('ativo'));
+
+      // Ativa marcador atual
+      const marcador = document.getElementById(`marcador-demo-${local.id}`);
+      if (marcador) marcador.classList.add('ativo');
+
+      // Consulta o ponto
+      consultarPonto(local.lat, local.lng, local.name);
+    }
+
+    function adicionarMarcadoresCurados() {
+      CONFIG.LOCATIONS.forEach(local => {
+        const marker = new google.maps.Marker({
+          position: { lat: local.lat, lng: local.lng },
+          map: map,
+          title: local.name,
+          icon: {
+            url: `data:image/svg+xml,${encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 50">
+                <path d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z" fill="#0066cc"/>
+                <circle cx="20" cy="18" r="12" fill="white"/>
+                <text x="20" y="23" text-anchor="middle" font-size="16">${ICONES[local.tipo] || '📍'}</text>
+              </svg>
+            `)}`,
+            scaledSize: new google.maps.Size(40, 50),
+            anchor: new google.maps.Point(20, 50),
+          },
+        });
+
+        marker.addListener('click', () => {
+          consultarPonto(local.lat, local.lng, local.name);
+        });
+
+        marker.localId = local.id;
+        marcadoresCurados.push(marker);
+      });
+    }
+
+    // =========================================================================
+    // CONSULTA DE PLUVIOSIDADE
+    // =========================================================================
+    async function consultarPonto(lat, lng, nome = null) {
+      // MUTEX: impede cliques duplos
+      if (consultaEmAndamento) return;
+      consultaEmAndamento = true;
+
+      try {
+        // Atualiza UI
+        document.getElementById('sidebar-welcome').classList.add('oculto');
+        document.getElementById('sidebar-marcadores').classList.remove('ativo');
+        document.getElementById('data-panel').classList.add('ativo');
+        document.getElementById('spinner').classList.add('ativo');
+        document.getElementById('painel-conteudo').style.display = 'none';
+
+        // Atualiza título
+        document.getElementById('painel-titulo').textContent = nome || 'Ponto Selecionado';
+
+        // Marcadores apenas se NÃO estiver em modo demo
+        if (!modoDemo) {
+          // Remove marcador anterior
+          if (marcadorAtual) {
+            marcadorAtual.setMap(null);
+          }
+
+          // Cria novo marcador
+          marcadorAtual = new google.maps.Marker({
+            position: { lat, lng },
+            map: map,
+            animation: google.maps.Animation.DROP,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#fbbf24',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 3,
+            },
+          });
+        }
+
+        // Busca dados
+        const id = nome ? CONFIG.LOCATIONS.find(l => l.name === nome)?.id : `pt_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+        const dados = await buscarComCache(id || `pt_${lat.toFixed(3)}_${lng.toFixed(3)}`, lat, lng);
+
+        // Renderiza
+        renderizarPainel(dados, lat, lng);
+
+      } catch (erro) {
+        console.error('Erro ao consultar ponto:', erro);
+        document.getElementById('painel-conteudo').innerHTML = `
+          <p style="color: var(--cor-perigo); text-align: center; padding: 2rem;">
+            Erro ao carregar dados meteorológicos.<br>
+            Tente novamente em alguns segundos.
+          </p>
+        `;
+        document.getElementById('painel-conteudo').style.display = 'block';
+      } finally {
+        document.getElementById('spinner').classList.remove('ativo');
+        consultaEmAndamento = false; // CRÍTICO: sempre libera o mutex
+      }
+    }
+
+    // =========================================================================
+    // CACHE E FETCH
+    // =========================================================================
+    async function buscarComCache(id, lat, lng) {
+      const chave = `adt_${id}`;
+      const agora = Date.now();
+
+      // Verifica cache
+      const cacheStr = sessionStorage.getItem(chave);
+      if (cacheStr) {
+        try {
+          const cache = JSON.parse(cacheStr);
+          if (agora - cache.timestamp < CONFIG.CACHE_MIN * 60 * 1000) {
+            return cache.dados;
+          }
+        } catch (e) {}
+      }
+
+      // Verifica fetch em andamento
+      if (_fetchEmAndamento.has(id)) {
+        return _fetchEmAndamento.get(id);
+      }
+
+      // Inicia fetch
+      const promise = buscarDados(lat, lng);
+      _fetchEmAndamento.set(id, promise);
+
+      try {
+        const dados = await promise;
+        // Salva no cache
+        sessionStorage.setItem(chave, JSON.stringify({
+          timestamp: agora,
+          dados: dados,
+        }));
+        return dados;
+      } finally {
+        _fetchEmAndamento.delete(id);
+      }
+    }
+
+    async function buscarDados(lat, lng) {
+      const url = new URL(CONFIG.WEATHER_API);
+      url.searchParams.set('latitude', lat.toFixed(4));
+      url.searchParams.set('longitude', lng.toFixed(4));
+      url.searchParams.set('current', 'precipitation,rain,weathercode,windspeed_10m,temperature_2m');
+      url.searchParams.set('daily', 'precipitation_sum,precipitation_probability_max');
+      url.searchParams.set('forecast_days', '4');
+      url.searchParams.set('timezone', 'America/Sao_Paulo');
+
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('Erro na API');
+
+      const data = await resp.json();
+
+      return {
+        mmAgora: data.current?.precipitation || 0,
+        mm24h: data.daily?.precipitation_sum?.[0] || 0,
+        prob: data.daily?.precipitation_probability_max?.[0] || 0,
+        vento: data.current?.windspeed_10m || 0,
+        temp: data.current?.temperature_2m || 0,
+        previsao: [
+          { dia: 'Amanhã', mm: data.daily?.precipitation_sum?.[1] || 0 },
+          { dia: getDiaSemana(1), mm: data.daily?.precipitation_sum?.[2] || 0 },
+          { dia: getDiaSemana(2), mm: data.daily?.precipitation_sum?.[3] || 0 },
+        ],
+      };
+    }
+
+    function getDiaSemana(offset) {
+      const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const d = new Date();
+      d.setDate(d.getDate() + offset + 1);
+      return dias[d.getDay()];
+    }
+
+    // =========================================================================
+    // CLASSIFICAÇÃO DE RISCO
+    // =========================================================================
+    function classificar(mm24h, mmAgora) {
+      if (mm24h < 0.1 && mmAgora < 0.1) {
+        return {
+          label: 'Sem Chuva',
+          desc: 'Condições secas previstas',
+          icon: '☀️',
+          cor: '#10b981',
+          risco: 'nulo',
+        };
+      }
+      if (mm24h < 5) {
+        return {
+          label: 'Chuva Fraca',
+          desc: 'Garoa ou chuva leve ocasional',
+          icon: '🌦️',
+          cor: '#3b82f6',
+          risco: 'baixo',
+        };
+      }
+      if (mm24h < 25) {
+        return {
+          label: 'Chuva Moderada',
+          desc: 'Chuva regular esperada',
+          icon: '🌧️',
+          cor: '#f59e0b',
+          risco: 'medio',
+        };
+      }
+      if (mm24h < 50) {
+        return {
+          label: 'Chuva Forte',
+          desc: 'Precipitação intensa',
+          icon: '⛈️',
+          cor: '#ef4444',
+          risco: 'alto',
+        };
+      }
+      return {
+        label: 'Chuva Crítica',
+        desc: 'Risco de alagamentos',
+        icon: '🌊',
+        cor: '#dc2626',
+        risco: 'critico',
+      };
+    }
+
+    function gerarRec(risco) {
+      const recs = {
+        nulo: { texto: '✓ Ótimo dia para atividades ao ar livre!', classe: 'sucesso' },
+        baixo: { texto: '☂️ Leve uma sombrinha por precaução.', classe: '' },
+        medio: { texto: '⚠️ Recomendado adiar atividades ao ar livre.', classe: '' },
+        alto: { texto: '⛔ Evite sair de casa se possível.', classe: 'perigo' },
+        critico: { texto: '🚨 ALERTA: Risco de alagamentos e enchentes!', classe: 'perigo' },
+      };
+      return recs[risco] || recs.medio;
+    }
+
+    // =========================================================================
+    // RENDERIZAÇÃO DO PAINEL
+    // =========================================================================
+    function renderizarPainel(dados, lat, lng) {
+      // Coordenadas
+      document.getElementById('coords').textContent =
+        `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+      // Classificação
+      const classif = classificar(dados.mm24h, dados.mmAgora);
+      const cardClassif = document.getElementById('card-classificacao');
+      cardClassif.style.background = classif.cor;
+      document.getElementById('icone-classificacao').textContent = classif.icon;
+      document.getElementById('label-classificacao').textContent = classif.label;
+      document.getElementById('desc-classificacao').textContent = classif.desc;
+
+      // Métricas
+      document.getElementById('mm-agora').textContent = `${dados.mmAgora.toFixed(1)}`;
+      document.getElementById('prob-chuva').textContent = `${dados.prob}%`;
+      document.getElementById('vento').textContent = `${dados.vento.toFixed(0)}`;
+      document.getElementById('temp').textContent = `${dados.temp.toFixed(1)}°`;
+
+      // Barras de previsão
+      const barrasContainer = document.getElementById('barras-previsao');
+      barrasContainer.innerHTML = '';
+
+      const maxMm = Math.max(50, ...dados.previsao.map(p => p.mm));
+
+      dados.previsao.forEach(prev => {
+        const pct = (prev.mm / maxMm) * 100;
+        const cor = prev.mm < 5 ? '#10b981' : prev.mm < 25 ? '#f59e0b' : '#ef4444';
+
+        barrasContainer.innerHTML += `
+          <div class="barra-dia">
+            <span class="dia">${prev.dia}</span>
+            <div class="barra-container">
+              <div class="barra-preenchimento" style="width: ${pct}%; background: ${cor};"></div>
+            </div>
+            <span class="valor-mm">${prev.mm.toFixed(1)}mm</span>
+          </div>
+        `;
+      });
+
+      // Recomendação
+      const rec = gerarRec(classif.risco);
+      const recEl = document.getElementById('recomendacao');
+      recEl.textContent = rec.texto;
+      recEl.className = 'recomendacao ' + rec.classe;
+
+      // Mostra conteúdo
+      document.getElementById('painel-conteudo').style.removeProperty('display');
+    }
+
+    // =========================================================================
+    // RESET E NAVEGAÇÃO
+    // =========================================================================
+    function resetarPainel() {
+      document.getElementById('data-panel').classList.remove('ativo');
+      document.getElementById('sidebar-welcome').classList.remove('oculto');
+      document.getElementById('sidebar-marcadores').classList.add('ativo');
+
+      if (!modoDemo && marcadorAtual) {
+        marcadorAtual.setMap(null);
+        marcadorAtual = null;
+      }
+
+      // Reset marcadores demo
+      if (modoDemo) {
+        document.querySelectorAll('.marcador-demo.ativo').forEach(m => m.classList.remove('ativo'));
+      }
+
+      // CRÍTICO: usar removeProperty para respeitar media queries
+      document.getElementById('painel-conteudo').style.removeProperty('display');
+    }
+
+    // =========================================================================
+    // LISTA DE LOCAIS
+    // =========================================================================
+    function renderizarListaLocais() {
+      const lista = document.getElementById('lista-locais');
+      lista.innerHTML = '';
+
+      CONFIG.LOCATIONS.forEach(local => {
+        const item = document.createElement('div');
+        item.className = 'item-local';
+        item.innerHTML = `
+          <span class="icone-tipo">${ICONES[local.tipo] || '📍'}</span>
+          <div class="info">
+            <div class="nome">${local.name}</div>
+            <div class="estado">${local.estado}</div>
+          </div>
+          <span class="chuva-badge carregando" id="badge-${local.id}">--</span>
+        `;
+        item.onclick = () => selecionarLocal(local);
+        lista.appendChild(item);
+      });
+
+      // Mostra a lista
+      document.getElementById('sidebar-marcadores').classList.add('ativo');
+    }
+
+    function selecionarLocal(local) {
+      if (modoDemo) {
+        consultarPontoDemo(local);
+        return;
+      }
+
+      if (!map) {
+        pendingLocalId = local.id;
+        return;
+      }
+
+      map.panTo({ lat: local.lat, lng: local.lng });
+      map.setZoom(10);
+      consultarPonto(local.lat, local.lng, local.name);
+    }
+
+    async function carregarChuvaLocais() {
+      for (const local of CONFIG.LOCATIONS) {
+        if (cancelarCarga) break;
+
+        try {
+          const dados = await buscarComCache(local.id, local.lat, local.lng);
+          const badge = document.getElementById(`badge-${local.id}`);
+          if (badge) {
+            const mm = dados.mm24h;
+            badge.textContent = `${mm.toFixed(0)}mm`;
+            badge.classList.remove('carregando');
+            badge.style.background = mm < 5 ? '#d1fae5' : mm < 25 ? '#fef3c7' : '#fee2e2';
+            badge.style.color = mm < 5 ? '#065f46' : mm < 25 ? '#92400e' : '#991b1b';
+          }
+        } catch (e) {
+          console.error(`Erro ao carregar ${local.name}:`, e);
+        }
+
+        // Pequeno delay para não sobrecarregar a API
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    // =========================================================================
+    // LOGOUT
+    // =========================================================================
+    function sair() {
+      localStorage.removeItem('agentedotempo_acesso');
+      cancelarCarga = true;
+
+      // Limpa marcadores (apenas se não for modo demo)
+      if (!modoDemo) {
+        marcadoresCurados.forEach(m => m.setMap(null));
+        marcadoresCurados = [];
+
+        if (marcadorAtual) {
+          marcadorAtual.setMap(null);
+          marcadorAtual = null;
+        }
+      }
+
+      consultaEmAndamento = false;
+      map = null;
+      mapsApiCarregada = false;
+      modoDemo = false;
+      pendingLocalId = null;
+
+      ativarLocked();
+    }
+
+    // =========================================================================
+    // ERRO CRÍTICO
+    // =========================================================================
+    function mostrarErroCritico(mensagem) {
+      document.getElementById('erro-mensagem').textContent = mensagem;
+      document.getElementById('erro-critico').classList.add('ativo');
+    }
+  </script>
+</body>
+</html>
