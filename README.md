@@ -1,6 +1,6 @@
-# MeteoGov Brasil · Inteligência Climática
+# MetBrasil · Inteligência Climática em Tempo Real
 
-Sistema de informações meteorológicas em tempo real para todos os estados brasileiros.
+Sistema de informações meteorológicas em tempo real para todos os estados brasileiros com mapa interativo.
 
 **[Acessar Site](https://agente-do-tempo-vibrante.netlify.app)** | **metbrasil.com.br**
 
@@ -8,21 +8,47 @@ Sistema de informações meteorológicas em tempo real para todos os estados bra
 
 ## Sobre
 
-O **MeteoGov Brasil** é uma aplicação web single-page que oferece dados meteorológicos em tempo real para todo o território brasileiro. Com três temas visuais animados que alternam automaticamente, o sistema detecta a localização do usuário via IP e exibe informações detalhadas de clima para os 27 estados.
+O **MetBrasil** é uma aplicação web single-page que oferece dados meteorológicos em tempo real para todo o território brasileiro. Com mapa interativo Leaflet, três temas visuais animados, busca de cidades e marcadores coloridos por temperatura, o sistema detecta a localização do usuário via IP e exibe informações detalhadas de clima para os 27 estados.
 
 ## Funcionalidades
 
+### Mapa Interativo Leaflet
+- Tiles CartoDB Dark para visual elegante
+- Zoom, pan e clique em qualquer ponto
+- 27 marcadores de estados com dados ao vivo
+- Marcadores coloridos por temperatura:
+  - Verde: < 20°C
+  - Laranja: 20°C - 30°C
+  - Vermelho: > 30°C
+- Clique em qualquer lugar do mapa para ver o clima
+- Overlay temático que muda com cada tema
+- Marcador de localização do usuário com pulso animado
+
+### Busca de Cidades
+- Campo de busca com autocomplete
+- 27 capitais brasileiras cadastradas
+- Clique para ver clima e navegar no mapa
+- Atualiza painel principal com a cidade selecionada
+
 ### Sistema de Temas Automáticos
-- **Tema Chuva**: 130 gotas animadas, paleta azul/cyan
-- **Tema Sol**: 55 partículas douradas, paleta âmbar/laranja
-- **Tema Nublado**: 10 nuvens flutuantes, paleta cinza/azulado
+- **Tema Chuva**: 120 gotas animadas, paleta azul/cyan
+- **Tema Sol**: 50 partículas douradas, paleta âmbar/laranja
+- **Tema Nublado**: 9 nuvens flutuantes, paleta cinza/azulado
 - Alternância automática a cada 8 segundos
 - Barra de progresso visual no topo
 - Seleção manual com retorno automático após 24s
+- Efeito flash na transição de temas
+- Filtro do mapa adapta-se ao tema
+
+### Tela de Loading
+- Logo animado com glow
+- Barra de progresso suave
+- Transição elegante ao carregar dados
 
 ### Detecção de Localização
 - Identificação automática via IP (ipapi.co)
-- Exibe cidade e estado do usuário
+- Marcador pulsante no mapa
+- Popup com dados da sua localização
 - Fallback para São Paulo em caso de erro
 
 ### Dados em Tempo Real
@@ -38,16 +64,19 @@ O **MeteoGov Brasil** é uma aplicação web single-page que oferece dados meteo
 - Ícone da condição climática
 - Probabilidade de precipitação
 
-### Mapa Interativo
-- 27 pontos representando cada estado
-- Animação de pulso nos marcadores
-- Tooltip com sigla e temperatura
-- Clique para ver detalhes completos
+### Painel de Estados
+- Abas: TODOS / DETALHE
+- Grid com todos os 27 estados
+- Painel de detalhes com:
+  - Temperatura e ícone
+  - Barra de umidade
+  - Escala de índice UV
+  - Velocidade do vento
+  - Probabilidade de chuva
 
-### Grid de Estados
-- Todos os 27 estados com dados ao vivo
-- Ícone do clima, sigla e temperatura
-- Seleção com destaque visual
+### Legenda do Mapa
+- Explicação visual das cores dos marcadores
+- Indicador de localização do usuário
 
 ### Recursos Adicionais
 - Toggle Celsius/Fahrenheit
@@ -61,6 +90,8 @@ O **MeteoGov Brasil** é uma aplicação web single-page que oferece dados meteo
 | Tecnologia | Uso |
 |------------|-----|
 | HTML/CSS/JS | Stack completa (zero frameworks) |
+| Leaflet.js | Mapa interativo |
+| CartoDB Tiles | Tiles dark elegantes |
 | Canvas 2D API | Partículas animadas |
 | CSS Grid | Layout responsivo 3 colunas |
 | CSS Custom Properties | Sistema de temas |
@@ -73,22 +104,25 @@ O **MeteoGov Brasil** é uma aplicação web single-page que oferece dados meteo
 ### Tema Chuva
 | Variável | Cor | Hex |
 |----------|-----|-----|
-| Fundo | Azul noturno | `#060d1a` |
+| Fundo | Azul noturno | `#04101f` → `#071828` |
 | Destaque | Cyan elétrico | `#4fc3f7` |
+| Secundário | Azul | `#0288d1` |
 | Texto | Branco gelo | `#e0f7fa` |
 
 ### Tema Sol
 | Variável | Cor | Hex |
 |----------|-----|-----|
-| Fundo | Laranja queimado | `#1a0800` |
+| Fundo | Laranja vibrante | `#b33800` → `#e86000` |
 | Destaque | Amarelo solar | `#ffe566` |
-| Texto | Creme | `#fff8e1` |
+| Secundário | Laranja | `#ff9900` |
+| Texto | Marrom escuro | `#1a0400` |
 
 ### Tema Nublado
 | Variável | Cor | Hex |
 |----------|-----|-----|
-| Fundo | Cinza-azulado | `#1c2535` |
-| Destaque | Azul acinzentado | `#9fb8d8` |
+| Fundo | Cinza-azulado | `#18222f` → `#263545` |
+| Destaque | Azul acinzentado | `#a0bcd8` |
+| Secundário | Azul cinza | `#6888a4` |
 | Texto | Branco azulado | `#dde8f5` |
 
 ## Códigos WMO
@@ -102,13 +136,13 @@ O sistema interpreta os códigos meteorológicos da World Meteorological Organiz
 | 3 | Nublado | ☁️ |
 | 45-49 | Nevoeiro | 🌫️ |
 | 51-59 | Garoa | 🌦️ |
-| 61-69 | Neve | ❄️ |
+| 61-69 | Neve/Granizo | ❄️ |
 | 71-82 | Chuva | 🌧️ |
 | 85+ | Tempestade | ⛈️ |
 
 ## Estados Brasileiros
 
-Todos os 27 estados com coordenadas e posicionamento no mapa:
+Todos os 27 estados com coordenadas e marcadores no mapa:
 
 | Região | Estados |
 |--------|---------|
@@ -136,11 +170,18 @@ https://ipapi.co/json/
 - 30.000 requisições/mês
 - Retorna: city, region_code, latitude, longitude
 
+### Leaflet + CartoDB
+```
+https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
+```
+- Tiles gratuitos estilo dark
+- Zoom até nível 18
+
 ## Estrutura
 
 ```
 agente-do-tempo/
-├── index.html                  # Aplicação completa (~1300 linhas)
+├── index.html                  # Aplicação completa (~1000 linhas)
 ├── AGENTE_DO_TEMPO_CONTEXT.txt # Documentação técnica
 └── README.md                   # Este arquivo
 ```
@@ -148,37 +189,41 @@ agente-do-tempo/
 ## Layout
 
 ### Desktop (3 colunas)
-- **Esquerda (360px)**: Localização, relógio, alertas
-- **Centro (flexível)**: Mapa do Brasil
-- **Direita (320px)**: Previsão, estados, umidade
+- **Header (56px)**: Logo, botões de tema, toggle °C/°F, relógio
+- **Esquerda (340px)**: Busca, localização, relógio, alertas, umidade
+- **Centro (flexível)**: Mapa Leaflet interativo
+- **Direita (290px)**: Previsão, estados (abas), legenda
 
-### Tablet (2 colunas)
-- Mapa ocupa linha completa
-- Colunas laterais lado a lado
+### Tablet (< 1100px)
+- Header + 2 colunas
+- Painel direito oculto
 
-### Mobile (1 coluna)
-- Layout empilhado
-- Botões de tema ocultos
-- Grid de estados 2 colunas
+### Mobile (< 700px)
+- Header + mapa fullscreen
+- Painéis laterais ocultos
 
 ## Animações
 
 | Animação | Duração | Elemento |
 |----------|---------|----------|
-| progress | 8s | Barra de tema |
+| tprog | 8s | Barra de tema |
 | bob | 3.5s | Ícone principal |
-| ping | 2s | Pontos do mapa |
+| locpulse | 2s | Marcador localização |
+| loadprog | 2.2s | Barra de loading |
+| sp | 0.7s | Spinner |
+| flashing | 0.35s | Flash de transição |
 | Partículas | 60fps | Canvas |
-| Transições | 0.4s | Todos elementos |
 
 ## Como Usar
 
 1. Acesse https://agente-do-tempo-vibrante.netlify.app
-2. Permita a detecção de localização (opcional)
-3. Veja seus dados meteorológicos locais
-4. Clique em estados no mapa ou grid para detalhes
-5. Use °C/°F para alternar unidade
-6. Clique nos botões de tema para fixar um visual
+2. Aguarde o carregamento dos dados
+3. Veja seus dados meteorológicos locais (detectados por IP)
+4. Use a busca para encontrar outras cidades
+5. Clique nos estados no mapa ou no grid
+6. Clique em qualquer ponto do mapa para ver o clima
+7. Use °C/°F para alternar unidade
+8. Clique nos botões de tema para fixar um visual
 
 ## Desenvolvimento Local
 
@@ -198,6 +243,7 @@ Não requer servidor local - basta abrir o HTML diretamente.
 - **GitHub**: https://github.com/pcssantos1967-png/agente-do-tempo
 - **Open-Meteo Docs**: https://open-meteo.com/en/docs
 - **ipapi.co Docs**: https://ipapi.co/api/
+- **Leaflet Docs**: https://leafletjs.com/reference.html
 
 ## Licença
 
