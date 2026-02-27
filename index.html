@@ -964,10 +964,8 @@ const STATES=[
 ];
 
 const SPOTS=[
-  {name:'Jericoacoara',lat:-2.79,lon:-40.51,type:'kite'},{name:'Cumbuco',lat:-3.63,lon:-38.73,type:'kite'},
-  {name:'Prea',lat:-2.92,lon:-40.42,type:'kite'},{name:'Sao M. Gostoso',lat:-5.12,lon:-35.63,type:'wind'},
-  {name:'Atins',lat:-2.58,lon:-42.73,type:'kite'},{name:'Florianopolis',lat:-27.59,lon:-48.55,type:'surf'},
-  {name:'Ilhabela',lat:-23.78,lon:-45.36,type:'sail'},{name:'Buzios',lat:-22.75,lon:-41.88,type:'surf'},
+  // SURF (19)
+  {name:'Florianopolis',lat:-27.59,lon:-48.55,type:'surf'},{name:'Buzios',lat:-22.75,lon:-41.88,type:'surf'},
   {name:'Arraial do Cabo',lat:-22.97,lon:-42.03,type:'surf'},{name:'Saquarema',lat:-22.92,lon:-42.51,type:'surf'},
   {name:'Itacare',lat:-14.28,lon:-38.99,type:'surf'},{name:'Torres',lat:-29.35,lon:-49.73,type:'surf'},
   {name:'Garopaba',lat:-28.02,lon:-48.62,type:'surf'},{name:'Ubatuba',lat:-23.43,lon:-45.07,type:'surf'},
@@ -976,7 +974,26 @@ const SPOTS=[
   {name:'Fernando Noronha',lat:-3.85,lon:-32.43,type:'surf'},{name:'Morro de SP',lat:-13.38,lon:-38.91,type:'surf'},
   {name:'Porto de Galinhas',lat:-8.50,lon:-35.00,type:'surf'},{name:'Praia do Forte',lat:-12.58,lon:-38.00,type:'surf'},
   {name:'Balneario Camboriu',lat:-26.99,lon:-48.63,type:'surf'},{name:'Imbituba',lat:-28.24,lon:-48.67,type:'surf'},
-  {name:'Cabo Frio',lat:-22.88,lon:-42.03,type:'wind'},{name:'Barra Grande PI',lat:-2.90,lon:-41.40,type:'kite'},
+  {name:'Praia do Rosa',lat:-28.13,lon:-48.63,type:'surf'},{name:'Joaquina',lat:-27.63,lon:-48.45,type:'surf'},
+  {name:'Matinhos',lat:-25.82,lon:-48.54,type:'surf'},{name:'Prainha RJ',lat:-23.04,lon:-43.50,type:'surf'},
+  {name:'Stella Maris',lat:-12.94,lon:-38.34,type:'surf'},
+  // KITE (10)
+  {name:'Jericoacoara',lat:-2.79,lon:-40.51,type:'kite'},{name:'Cumbuco',lat:-3.63,lon:-38.73,type:'kite'},
+  {name:'Prea',lat:-2.92,lon:-40.42,type:'kite'},{name:'Atins',lat:-2.58,lon:-42.73,type:'kite'},
+  {name:'Barra Grande PI',lat:-2.90,lon:-41.40,type:'kite'},{name:'Icaraizinho',lat:-2.85,lon:-39.95,type:'kite'},
+  {name:'Guajiru',lat:-3.18,lon:-39.27,type:'kite'},{name:'Macapa PI',lat:-2.91,lon:-41.05,type:'kite'},
+  {name:'Ilha do Guajiru',lat:-2.90,lon:-40.05,type:'kite'},
+  // WIND (2)
+  {name:'Sao M. Gostoso',lat:-5.12,lon:-35.63,type:'wind'},{name:'Cabo Frio',lat:-22.88,lon:-42.03,type:'wind'},
+  // SAIL (4)
+  {name:'Ilhabela',lat:-23.78,lon:-45.36,type:'sail'},{name:'Angra dos Reis',lat:-23.01,lon:-44.32,type:'sail'},
+  {name:'Paraty',lat:-23.22,lon:-44.71,type:'sail'},{name:'Lagoa da Conceicao',lat:-27.60,lon:-48.47,type:'sail'},
+  // PARA (3)
+  {name:'Gov. Valadares',lat:-18.85,lon:-41.95,type:'para'},{name:'Pico do Gaviao',lat:-22.68,lon:-43.28,type:'para'},
+  {name:'Andradas',lat:-22.07,lon:-46.57,type:'para'},
+  // FISH (3)
+  {name:'Vitoria',lat:-20.32,lon:-40.29,type:'fish'},{name:'Cananeia',lat:-25.01,lon:-47.93,type:'fish'},
+  {name:'Barra de S. Miguel',lat:-9.85,lon:-35.90,type:'fish'},
 ];
 
 // Map tiles per theme
@@ -1780,8 +1797,8 @@ function makeIcon(temp,icon,highlight=false){
   });
 }
 function makeSpotIcon(type){
-  const colors={surf:'#0097a7',kite:'#7c4dff',wind:'#00897b',sail:'#1565c0',fish:'#558b2f'};
-  const icons={surf:'\uD83C\uDFC4',kite:'\uD83E\uDE81',wind:'\uD83C\uDFC4',sail:'\u26F5',fish:'\uD83C\uDFA3'};
+  const colors={surf:'#0097a7',kite:'#7c4dff',wind:'#00897b',sail:'#1565c0',fish:'#558b2f',para:'#f57c00'};
+  const icons={surf:'\uD83C\uDFC4',kite:'\uD83E\uDE81',wind:'\uD83C\uDFC4',sail:'\u26F5',fish:'\uD83C\uDFA3',para:'\uD83E\uDE82'};
   const col=colors[type]||'#0097a7';const ico=icons[type]||'\uD83C\uDFC4';
   return L.divIcon({className:'',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-20],
     html:`<div style="width:32px;height:32px;border-radius:50%;background:${col};border:3px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 0 15px ${col};font-size:1rem;cursor:pointer;">${ico}</div>`
