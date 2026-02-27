@@ -705,6 +705,19 @@ header{
   .logo-main{font-size:1.4rem;}
   .hdr-center{display:none;}
 }
+
+/* MOBILE PERFORMANCE: disable heavy animations */
+@media(max-width:768px),(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:0.01ms!important;
+  }
+  #fx,#windCanvas,#lightning,.wind-toggle{display:none!important;}
+  .shell{transform:none!important;}
+  .card,.left-panel,.right-panel{backdrop-filter:none!important;}
+  .map-vignette{box-shadow:none!important;}
+}
 </style>
 </head>
 <body class="theme-rain mode-surf">
@@ -1253,9 +1266,9 @@ function renderParticles(){
     if(p.y<-50){p.y=cv.height+50;}
     if(p.x<-200){p.x=cv.width+200;}
   }
-  requestAnimationFrame(renderParticles);
+  if(!isMobile)requestAnimationFrame(renderParticles);
 }
-initParticles();renderParticles();
+if(!isMobile){initParticles();renderParticles();}
 
 // ============ LIGHTNING EFFECT ============
 function triggerLightning(){
@@ -2367,10 +2380,12 @@ async function init(){
   }
   await placeStateMarkers();
 
-  // Start wind animation after data loads
-  initWindParticles();
-  syncWindCanvas();
-  if(!windAnimId)renderWindParticles();
+  // Start wind animation after data loads (skip on mobile)
+  if(!isMobile){
+    initWindParticles();
+    syncWindCanvas();
+    if(!windAnimId)renderWindParticles();
+  }
 
   // Open shared spot modal after everything loads
   if(sharedSpot){
