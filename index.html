@@ -406,14 +406,16 @@ header{
 .logo-dot{color:var(--acc2);transition:color var(--tr);font-size:1.5rem;}
 .logo-sub{font-family:'Orbitron';font-size:.45rem;letter-spacing:4px;opacity:.5;text-transform:uppercase;}
 .hdr-center{display:flex;align-items:center;gap:8px;}
-.theme-pill{
-  padding:6px 14px;border-radius:20px;border:2px solid var(--bdr);
-  background:rgba(0,0,0,0.3);color:var(--txt);font-family:'Orbitron';font-size:.55rem;
-  cursor:pointer;opacity:.5;transition:all .3s;letter-spacing:1px;
-  transform:translateZ(10px);
+.weather-status{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px;border-radius:25px;
+  background:rgba(0,0,0,0.4);border:2px solid var(--bdr);
+  transition:all .3s;
 }
-.theme-pill.on{background:var(--acc);color:var(--bg1);border-color:var(--acc);opacity:1;font-weight:700;box-shadow:0 0 20px var(--glow);}
-.theme-pill:hover:not(.on){opacity:.85;border-color:var(--acc);transform:translateZ(15px) scale(1.05);}
+.ws-icon{font-size:1.4rem;filter:drop-shadow(0 0 8px var(--glow));}
+.ws-temp{font-family:'Bebas Neue';font-size:1.3rem;color:var(--acc);letter-spacing:2px;}
+.ws-desc{font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;opacity:.8;text-transform:uppercase;}
+.ws-loc{font-size:.7rem;opacity:.6;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Syne';}
 .hdr-right{display:flex;align-items:center;gap:10px;}
 .utog{display:flex;border:2px solid var(--bdr);border-radius:8px;overflow:hidden;transition:border-color var(--tr);background:rgba(0,0,0,0.2);}
 .ubtn{padding:5px 10px;background:transparent;border:none;color:var(--txt);font-family:'Orbitron';font-size:.55rem;cursor:pointer;opacity:.5;transition:all .25s;}
@@ -793,7 +795,11 @@ header{
   .sport-bar{overflow-x:auto;justify-content:flex-start;}
   header{padding:0 12px;}
   .logo-main{font-size:1.4rem;}
-  .hdr-center{display:none;}
+  .hdr-center{display:flex;}
+  .weather-status{padding:4px 10px;gap:6px;}
+  .ws-desc,.ws-loc{display:none;} /* Hide text on small screens */
+  .ws-icon{font-size:1.1rem;}
+  .ws-temp{font-size:1rem;}
 }
 
 /* MOBILE PERFORMANCE: disable heavy animations */
@@ -911,9 +917,12 @@ header{
       <span class="logo-sub">metbrasil.com.br</span>
     </div>
     <div class="hdr-center">
-      <button class="theme-pill on" data-t="rain">&#9729; CHUVA</button>
-      <button class="theme-pill" data-t="sun">&#9728; SOL</button>
-      <button class="theme-pill" data-t="cloudy">&#9730; NUBLADO</button>
+      <div class="weather-status" id="weatherStatus">
+        <span class="ws-icon" id="wsIcon">⏳</span>
+        <span class="ws-temp" id="wsTemp">--°</span>
+        <span class="ws-desc" id="wsDesc">Carregando...</span>
+        <span class="ws-loc" id="wsLoc">📍</span>
+      </div>
     </div>
     <div class="hdr-right">
       <div class="utog" role="group" aria-label="Unidade de temperatura">
@@ -1544,7 +1553,6 @@ function setTheme(t,manual=false){
   setTimeout(()=>{
     curTheme=t;
     document.body.className='theme-'+t+' mode-'+curSport;
-    document.querySelectorAll('.theme-pill').forEach(p=>p.classList.toggle('on',p.dataset.t===t));
 
     // Change map tiles
     if(map&&tileLayer){
@@ -1581,9 +1589,7 @@ function setThemeByWeather(wCode){
   setTheme(wmoToTheme(wCode));
 }
 
-document.querySelectorAll('.theme-pill').forEach(b=>{
-  b.addEventListener('click',()=>setTheme(b.dataset.t,true));
-});
+// Theme is now automatic only (based on weather at user location)
 
 // ============ SPORT MODE ============
 document.querySelectorAll('.sport-btn').forEach(b=>{
@@ -2404,6 +2410,12 @@ async function loadMain(lat,lon,city){
   document.getElementById('mtemp').innerHTML=toN(c.temperature_2m)+'<sup>'+(celsius?'C':'F')+'</sup>';
   document.getElementById('mdesc').textContent=wmoDesc(c.weather_code);
   document.getElementById('micon').textContent=wmoIcon(c.weather_code);
+
+  // Update header weather status
+  document.getElementById('wsIcon').textContent=wmoIcon(c.weather_code);
+  document.getElementById('wsTemp').textContent=toN(c.temperature_2m)+'°';
+  document.getElementById('wsDesc').textContent=wmoDesc(c.weather_code);
+  document.getElementById('wsLoc').textContent='📍 '+safeCity;
   document.getElementById('mfeel').textContent=toC(c.apparent_temperature);
   document.getElementById('mhum').textContent=c.relative_humidity_2m+'%';
   document.getElementById('mgust').textContent=toW(c.wind_gusts_10m);
@@ -2665,14 +2677,6 @@ function setLang(lang){
   // Update toggle buttons
   document.getElementById('langPT').classList.toggle('on',lang==='pt');
   document.getElementById('langEN').classList.toggle('on',lang==='en');
-
-  // Update theme buttons
-  document.querySelectorAll('.theme-pill').forEach(btn=>{
-    const theme=btn.dataset.t;
-    if(theme==='rain')btn.innerHTML='&#9729; '+t('rain');
-    if(theme==='sun')btn.innerHTML='&#9728; '+t('sun');
-    if(theme==='cloudy')btn.innerHTML='&#9730; '+t('cloudy');
-  });
 
   // Update night indicator
   document.getElementById('niText').textContent=isNight?t('night'):t('day');
