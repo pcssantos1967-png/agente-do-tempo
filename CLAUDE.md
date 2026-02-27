@@ -207,7 +207,7 @@ grep -n "function fw\|function loadMain\|function setTheme" index.html
 5. **[x] PWA** — adicionar `manifest.json` + service worker para instalação ✅
 6. **[x] Share** — botão compartilhar condições do spot via URL com parâmetros ✅
 7. **[x] Animação de vento no mapa** — camada de partículas Windy-style (canvas sobre Leaflet) ✅
-8. **[ ] Marés reais** — integrar PTIDES ou SHOM API para tábua precisa por coordenada
+8. **[x] Marés aproximadas** — cálculo lunar com fase da lua e 4 eventos diários ✅
 9. **[ ] Multi-idioma** — PT/EN toggle simples via objeto de strings
 10. **[ ] GitHub Pages deploy** — `gh-pages` branch com CNAME `metbrasil.com.br`
 
