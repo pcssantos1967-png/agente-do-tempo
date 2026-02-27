@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MetBrasil · Inteligencia Climatica para Esportes</title>
 
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4fc3f7">
+<meta name="description" content="Plataforma brasileira de meteorologia focada em esportes aquaticos e ao ar livre">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MetBrasil">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23020810' width='180' height='180' rx='20'/><text x='90' y='75' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='65' font-weight='bold'>M</text><text x='90' y='135' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='28'>BRASIL</text></svg>">
+
 <!-- Leaflet Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -1545,6 +1554,17 @@ async function init(){
   await placeStateMarkers();
 }
 init();
+
+// ============ SERVICE WORKER ============
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      console.log('MetBrasil SW registrado:',reg.scope);
+    }).catch(err=>{
+      console.log('MetBrasil SW erro:',err);
+    });
+  });
+}
 </script>
 </body>
 </html>

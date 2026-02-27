@@ -1,0 +1,35 @@
+{
+  "name": "MetBrasil - Inteligencia Climatica para Esportes",
+  "short_name": "MetBrasil",
+  "description": "Plataforma brasileira de meteorologia focada em esportes aquaticos e ao ar livre",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020810",
+  "theme_color": "#4fc3f7",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "pt-BR",
+  "categories": ["weather", "sports"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23020810' width='512' height='512' rx='64'/><text x='256' y='200' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='180' font-weight='bold'>M</text><text x='256' y='380' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='80'>BRASIL</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23020810' width='192' height='192' rx='24'/><text x='96' y='80' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='70' font-weight='bold'>M</text><text x='96' y='145' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='30'>BRASIL</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Ver Previsao",
+      "url": "/",
+      "description": "Abrir previsao do tempo"
+    }
+  ]
+}
