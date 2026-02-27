@@ -376,6 +376,23 @@ header{
   z-index:500;pointer-events:none;backdrop-filter:blur(15px);white-space:nowrap;transition:all var(--tr);
 }
 
+/* ===================== WIND ANIMATION LAYER ===================== */
+#windCanvas{
+  position:absolute;inset:0;z-index:402;pointer-events:none;
+  opacity:0.7;mix-blend-mode:screen;transition:opacity .5s;
+}
+.wind-toggle{
+  position:absolute;bottom:20px;right:20px;z-index:500;
+  display:flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:20px;
+  background:var(--card);border:1px solid var(--bdr);
+  font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+  cursor:pointer;transition:all .2s;backdrop-filter:blur(15px);
+}
+.wind-toggle:hover{border-color:var(--acc);background:rgba(255,255,255,0.1);}
+.wind-toggle.on{background:var(--acc);color:var(--bg1);border-color:var(--acc);}
+.wind-toggle .wt-icon{font-size:1rem;}
+
 /* ===================== CARDS - 3D FLOATING ===================== */
 .card{
   background:var(--card);
@@ -816,10 +833,14 @@ header{
   <!-- MAP -->
   <div class="map-wrap">
     <div id="map"></div>
+    <canvas id="windCanvas"></canvas>
     <div class="map-overlay"></div>
     <div class="map-vignette"></div>
     <div class="map-hint">&#128433;&#65039; CLIQUE NO MAPA</div>
     <div class="map-badge">MET:BRASIL</div>
+    <button class="wind-toggle on" id="windToggle" title="Animacao de vento">
+      <span class="wt-icon">💨</span>VENTO
+    </button>
   </div>
 
   <!-- RIGHT PANEL -->
@@ -1021,6 +1042,114 @@ function startLightning(){
 function stopLightning(){
   if(lightningInterval){clearInterval(lightningInterval);lightningInterval=null;}
   document.getElementById('lightning').style.opacity='0';
+}
+
+// ============ WIND ANIMATION LAYER ============
+const windCv=document.getElementById('windCanvas');
+const windCx=windCv.getContext('2d');
+let windParticles=[],windEnabled=true,windAnimId=null;
+const WIND_PARTICLE_COUNT=800;
+const WIND_FADE=0.92;
+
+function resizeWindCanvas(){
+  const wrap=document.querySelector('.map-wrap');
+  if(wrap){windCv.width=wrap.clientWidth;windCv.height=wrap.clientHeight;}
+}
+window.addEventListener('resize',resizeWindCanvas);
+
+class WindParticle{
+  constructor(){this.reset();}
+  reset(){
+    this.x=Math.random()*windCv.width;
+    this.y=Math.random()*windCv.height;
+    this.age=0;
+    this.maxAge=50+Math.random()*100;
+  }
+}
+
+function initWindParticles(){
+  resizeWindCanvas();
+  windParticles=Array.from({length:WIND_PARTICLE_COUNT},()=>new WindParticle());
+}
+
+function getWindAtPoint(x,y){
+  // Convert canvas coords to lat/lon and find nearest wind data
+  if(!map||stateMarkers.length===0)return{speed:10,dir:45};
+  const bounds=map.getBounds();
+  const lng=bounds.getWest()+(x/windCv.width)*(bounds.getEast()-bounds.getWest());
+  const lat=bounds.getNorth()-(y/windCv.height)*(bounds.getNorth()-bounds.getSouth());
+
+  // Find nearest states and interpolate
+  let totalWeight=0,avgSpeed=0,avgDirX=0,avgDirY=0;
+  stateMarkers.forEach(({s})=>{
+    if(s._w===null||s._wdir===null)return;
+    const dist=Math.sqrt(Math.pow(s.lat-lat,2)+Math.pow(s.lon-lng,2));
+    if(dist<15){
+      const weight=1/(dist+0.5);
+      totalWeight+=weight;
+      avgSpeed+=s._w*weight;
+      const rad=s._wdir*Math.PI/180;
+      avgDirX+=Math.sin(rad)*weight;
+      avgDirY-=Math.cos(rad)*weight;
+    }
+  });
+  if(totalWeight>0){
+    return{speed:avgSpeed/totalWeight,dir:Math.atan2(avgDirX,avgDirY)*180/Math.PI};
+  }
+  return{speed:10,dir:45};
+}
+
+function renderWindParticles(){
+  if(!windEnabled){windAnimId=requestAnimationFrame(renderWindParticles);return;}
+
+  // Fade trail effect
+  windCx.fillStyle=`rgba(0,0,0,${1-WIND_FADE})`;
+  windCx.fillRect(0,0,windCv.width,windCv.height);
+
+  // Get theme color
+  const style=getComputedStyle(document.body);
+  const acc=style.getPropertyValue('--acc').trim()||'#4fc3f7';
+
+  windParticles.forEach(p=>{
+    const wind=getWindAtPoint(p.x,p.y);
+    const speed=Math.min(wind.speed,50)/50;
+    const rad=(wind.dir-90)*Math.PI/180;
+    const vx=Math.cos(rad)*(1+speed*3);
+    const vy=Math.sin(rad)*(1+speed*3);
+
+    // Draw particle
+    const alpha=Math.min(1,(1-p.age/p.maxAge)*speed*2);
+    windCx.beginPath();
+    windCx.strokeStyle=acc.replace(')',`,${alpha})`).replace('rgb','rgba');
+    windCx.lineWidth=1+speed;
+    windCx.moveTo(p.x,p.y);
+    p.x+=vx;p.y+=vy;
+    windCx.lineTo(p.x,p.y);
+    windCx.stroke();
+
+    p.age++;
+    if(p.age>p.maxAge||p.x<0||p.x>windCv.width||p.y<0||p.y>windCv.height){
+      p.reset();
+    }
+  });
+
+  windAnimId=requestAnimationFrame(renderWindParticles);
+}
+
+function toggleWind(){
+  windEnabled=!windEnabled;
+  document.getElementById('windToggle').classList.toggle('on',windEnabled);
+  windCv.style.opacity=windEnabled?'0.7':'0';
+  if(windEnabled&&!windAnimId)renderWindParticles();
+}
+document.getElementById('windToggle').onclick=toggleWind;
+
+// Sync wind canvas with map movements
+function syncWindCanvas(){
+  if(map){
+    map.on('move',()=>{windParticles.forEach(p=>p.reset());});
+    map.on('zoom',()=>{windParticles.forEach(p=>p.reset());});
+  }
 }
 
 // ============ THEME SYSTEM (CINEMATIC) ============
@@ -1646,6 +1775,11 @@ async function init(){
     await loadMain(uLat,uLon,'Sao Paulo, SP');
   }
   await placeStateMarkers();
+
+  // Start wind animation after data loads
+  initWindParticles();
+  syncWindCanvas();
+  renderWindParticles();
 
   // Open shared spot modal after everything loads
   if(sharedSpot){
