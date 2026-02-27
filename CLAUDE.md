@@ -203,7 +203,7 @@ grep -n "function fw\|function loadMain\|function setTheme" index.html
 1. **[x] Previsão de ondas real** — integrar Open-Meteo `wave_height` e `swell_wave_height` ✅
 2. **[x] Modo noturno automático** — detectar hora local e ajustar brilho do mapa ✅
 3. **[x] Alertas reais** — Open-Meteo `precipitation_probability > 80%` → badge vermelho ✅
-4. **[ ] Página de spot** — click no marcador abre modal com histórico 7 dias
+4. **[x] Página de spot** — click no marcador abre modal com histórico 7 dias ✅
 5. **[ ] PWA** — adicionar `manifest.json` + service worker para instalação
 6. **[ ] Share** — botão compartilhar condições do spot via URL com parâmetros
 7. **[ ] Animação de vento no mapa** — camada de partículas Windy-style (canvas sobre Leaflet)
