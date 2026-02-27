@@ -209,7 +209,7 @@ grep -n "function fw\|function loadMain\|function setTheme" index.html
 7. **[x] Animação de vento no mapa** — camada de partículas Windy-style (canvas sobre Leaflet) ✅
 8. **[x] Marés aproximadas** — cálculo lunar com fase da lua e 4 eventos diários ✅
 9. **[x] Multi-idioma** — PT/EN toggle com 100+ strings traduzidas ✅
-10. **[ ] GitHub Pages deploy** — `gh-pages` branch com CNAME `metbrasil.com.br`
+10. **[x] GitHub Pages deploy** — GitHub Actions workflow + CNAME configurado ✅
 
 ---
 
