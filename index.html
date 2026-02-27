@@ -15,11 +15,18 @@
 <meta name="apple-mobile-web-app-title" content="MetBrasil">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23020810' width='180' height='180' rx='20'/><text x='90' y='75' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='65' font-weight='bold'>M</text><text x='90' y='135' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='28'>BRASIL</text></svg>">
 
+<!-- Preconnect for faster loading -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.open-meteo.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com">
+
 <!-- Leaflet Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-<!-- Fonts -->
+<!-- Fonts (display=swap for faster text rendering) -->
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
@@ -1128,6 +1135,29 @@ let cache={},celsius=true,knots=false,curTheme='rain',curSport='surf',autoMode=t
 let uLat=null,uLon=null,map=null,tileLayer=null,userMarker=null,stateMarkers=[],spotMarkers=[];
 let autoThemeTimer=null,lightningInterval=null;
 
+// ============ PERSISTENT CACHE (localStorage + TTL 10min) ============
+const CACHE_KEY='metbrasil_weather_cache';
+const CACHE_TTL=10*60*1000; // 10 minutes
+function loadCache(){
+  try{
+    const stored=localStorage.getItem(CACHE_KEY);
+    if(!stored)return;
+    const {data,ts}=JSON.parse(stored);
+    if(Date.now()-ts<CACHE_TTL){
+      cache=data;
+      console.log('Cache restored:',Object.keys(cache).length,'locations');
+    }else{
+      localStorage.removeItem(CACHE_KEY);
+    }
+  }catch(e){console.warn('loadCache error:',e);}
+}
+function saveCache(){
+  try{
+    localStorage.setItem(CACHE_KEY,JSON.stringify({data:cache,ts:Date.now()}));
+  }catch(e){console.warn('saveCache error:',e);}
+}
+loadCache(); // restore on page load
+
 // ============ IMMERSIVE PARTICLES ============
 const cv=document.getElementById('fx'),cx=cv.getContext('2d');
 let pts=[];
@@ -1164,8 +1194,13 @@ class Particle{
   }
 }
 
+// Detect mobile/low-power device
+const isMobile=window.innerWidth<768||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
 function initParticles(){
-  const count=curTheme==='rain'?200:curTheme==='sun'?80:12;
+  // Reduce particles on mobile for better performance
+  let count=curTheme==='rain'?200:curTheme==='sun'?80:12;
+  if(isMobile)count=Math.floor(count*0.3); // 70% reduction on mobile
   pts=Array.from({length:count},()=>new Particle());
 }
 
@@ -1246,7 +1281,7 @@ function stopLightning(){
 const windCv=document.getElementById('windCanvas');
 const windCx=windCv.getContext('2d');
 let windParticles=[],windEnabled=true,windAnimId=null;
-const WIND_PARTICLE_COUNT=800;
+const WIND_PARTICLE_COUNT=isMobile?200:800; // Reduce on mobile
 const WIND_FADE=0.92;
 
 function resizeWindCanvas(){
@@ -1847,7 +1882,7 @@ async function fw(lat,lon){
     const d=await r.json();
     // Basic response structure validation
     if(!d||typeof d!=='object'||!d.current)throw new Error('Invalid response structure');
-    cache[k]=d;return d;
+    cache[k]=d;saveCache();return d;
   }catch(e){console.warn('fw() error:',e);return null;}
 }
 
@@ -1885,6 +1920,7 @@ async function fwBatch(locations){
         results[u.idx].d=d;
       }
     });
+    saveCache(); // persist to localStorage
   }catch(e){console.warn('fwBatch() error:',e);}
   return results;
 }
