@@ -315,6 +315,36 @@ header{
 .kite-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#4CAF50,#8BC34A,#FFEB3B,#FF9800,#f44336);transition:width .6s cubic-bezier(0.4,0,0.2,1);box-shadow:0 0 10px currentColor;}
 .kite-label{display:flex;justify-content:space-between;margin-top:4px;font-family:'Orbitron';font-size:.45rem;opacity:.6;letter-spacing:1px;}
 
+/* ===================== WAVE CARD ===================== */
+.wave-display{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.wave-icon{font-size:2.5rem;filter:drop-shadow(0 0 10px var(--acc));}
+.wave-data{flex:1;}
+.wave-height{font-family:'Bebas Neue';font-size:2.2rem;color:var(--acc);line-height:1;transition:color var(--tr);}
+.wave-height sup{font-size:0.9rem;}
+.wave-period{font-family:'Orbitron';font-size:.55rem;opacity:.7;margin-top:2px;letter-spacing:1px;}
+.wave-dir{font-family:'Orbitron';font-size:.5rem;opacity:.5;letter-spacing:1px;}
+.swell-strip{display:flex;gap:4px;overflow-x:auto;padding:6px 0;margin-top:8px;}
+.swell-strip::-webkit-scrollbar{height:3px;}
+.swell-strip::-webkit-scrollbar-thumb{background:var(--acc);border-radius:3px;}
+.swell-item{
+  flex-shrink:0;width:52px;padding:8px 4px;
+  border-radius:10px;border:1px solid var(--bdr);
+  text-align:center;font-family:'Orbitron';font-size:.42rem;
+  transition:all .2s;background:rgba(0,0,0,0.2);
+}
+.swell-item:hover{background:rgba(255,255,255,.08);transform:translateY(-2px);}
+.swell-item .sw-day{opacity:.5;margin-bottom:3px;letter-spacing:1px;}
+.swell-item .sw-icon{font-size:.9rem;}
+.swell-item .sw-height{font-weight:700;color:var(--acc);font-size:.6rem;margin-top:2px;}
+.swell-item .sw-period{opacity:.5;font-size:.4rem;}
+.wave-quality{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;margin-top:6px;}
+.wq-epic{background:linear-gradient(135deg,#00c853,#00e676);color:#fff;}
+.wq-good{background:linear-gradient(135deg,#2196f3,#03a9f4);color:#fff;}
+.wq-fair{background:linear-gradient(135deg,#ff9800,#ffc107);color:#000;}
+.wq-poor{background:linear-gradient(135deg,#607d8b,#90a4ae);color:#fff;}
+.wq-flat{background:linear-gradient(135deg,#37474f,#546e7a);color:#fff;}
+.no-wave-data{font-family:'Orbitron';font-size:.5rem;opacity:.4;text-align:center;padding:20px;letter-spacing:1px;}
+
 /* ===================== HOURLY STRIP ===================== */
 .hour-strip{display:flex;gap:4px;overflow-x:auto;padding:6px 0;}
 .hour-strip::-webkit-scrollbar{height:3px;}
@@ -559,6 +589,14 @@ header{
     <div class="card">
       <div class="clabel">&#128337; PREVISAO 12H</div>
       <div class="hour-strip" id="hourStrip"></div>
+    </div>
+
+    <!-- WAVES -->
+    <div class="card" id="waveCard">
+      <div class="clabel">&#127754; ONDAS</div>
+      <div id="waveContent">
+        <div class="no-wave-data">CARREGANDO DADOS DE ONDAS...</div>
+      </div>
     </div>
 
     <!-- METAS -->
@@ -893,6 +931,34 @@ function beaufort(kmh){
 }
 function windDir16(deg){const dirs=['N','NNE','NE','ENE','L','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];return dirs[Math.round(deg/22.5)%16];}
 
+// ============ WAVE HELPERS ============
+function waveQuality(height){
+  if(height===null||height===undefined)return{label:'SEM DADOS',cls:'wq-flat'};
+  if(height<0.3)return{label:'FLAT',cls:'wq-flat'};
+  if(height<0.8)return{label:'FRACO',cls:'wq-poor'};
+  if(height<1.5)return{label:'BOM',cls:'wq-good'};
+  if(height<2.5)return{label:'EPICO',cls:'wq-epic'};
+  return{label:'GRANDE',cls:'wq-fair'};
+}
+function waveDir(deg){
+  if(deg===null||deg===undefined)return'--';
+  const dirs=['N','NE','L','SE','S','SO','O','NO'];
+  return dirs[Math.round(deg/45)%8];
+}
+
+// ============ FETCH MARINE ============
+let marineCache={};
+async function fwMarine(lat,lon){
+  const k=`m${lat.toFixed(1)},${lon.toFixed(1)}`;
+  if(marineCache[k])return marineCache[k];
+  try{
+    const r=await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&daily=wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max&timezone=America%2FSao_Paulo&forecast_days=5`);
+    const d=await r.json();
+    marineCache[k]=d;
+    return d;
+  }catch(e){return null;}
+}
+
 // ============ FETCH ============
 async function fw(lat,lon){
   const k=`${lat.toFixed(1)},${lon.toFixed(1)}`;
@@ -999,6 +1065,8 @@ async function loadMain(lat,lon,city){
   badge.innerHTML=cond.label+' <span class="stars">'+'&#9733;'.repeat(cond.stars)+'&#9734;'.repeat(5-cond.stars)+'</span>';
   buildHours(d.hourly);
   buildWindTable(d.daily);
+  // Load marine/wave data
+  fwMarine(lat,lon).then(marine=>buildWaves(marine));
   if(userMarker)map.removeLayer(userMarker);
   userMarker=L.marker([lat,lon],{icon:makeUserIcon(),zIndexOffset:1000}).addTo(map);
 }
@@ -1032,6 +1100,60 @@ function buildWindTable(daily){
     tr.innerHTML=`<td>${i===0?'HOJE':D[dt.getDay()]}</td><td class="wt-icon">${wmoIcon(daily.weather_code[i])}</td><td class="wt-temp">${toN(daily.temperature_2m_max[i])}</td><td class="wt-wind">${toWn(daily.wind_speed_10m_max[i])}</td><td class="wt-gust">(${toWn(daily.wind_gusts_10m_max[i])})</td><td class="wt-precip">${daily.precipitation_probability_max[i]}%</td>`;
     tbody.appendChild(tr);
   }
+}
+
+// ============ BUILD WAVES ============
+function buildWaves(marine){
+  const container=document.getElementById('waveContent');
+  if(!marine||!marine.current){
+    container.innerHTML='<div class="no-wave-data">SEM DADOS DE ONDAS PARA ESTA LOCALIZACAO</div>';
+    return;
+  }
+  const cur=marine.current;
+  const daily=marine.daily;
+  const wh=cur.wave_height;
+  const swh=cur.swell_wave_height;
+  const wd=cur.wave_direction;
+  const wp=cur.wave_period;
+  const q=waveQuality(wh);
+
+  // Current wave display
+  let html=`<div class="wave-display">
+    <div class="wave-icon">🌊</div>
+    <div class="wave-data">
+      <div class="wave-height">${wh!==null?wh.toFixed(1):'--'}<sup>m</sup></div>
+      <div class="wave-period">${wp!==null?wp.toFixed(0)+'s':'--'} PERIODO</div>
+      <div class="wave-dir">${waveDir(wd)} (${wd!==null?Math.round(wd)+'°':'--'})</div>
+    </div>
+  </div>`;
+
+  // Wave quality badge
+  html+=`<div class="wave-quality ${q.cls}">${q.label}</div>`;
+
+  // Swell info if available
+  if(swh!==null&&swh>0){
+    html+=`<div style="margin-top:8px;font-family:'Orbitron';font-size:.5rem;opacity:.7;letter-spacing:1px;">SWELL: ${swh.toFixed(1)}m</div>`;
+  }
+
+  // 5-day swell strip
+  if(daily&&daily.wave_height_max){
+    const D=['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+    html+=`<div class="swell-strip">`;
+    for(let i=0;i<5;i++){
+      const dt=new Date(daily.time[i]);
+      const dayH=daily.wave_height_max[i];
+      const dayQ=waveQuality(dayH);
+      html+=`<div class="swell-item">
+        <div class="sw-day">${i===0?'HOJE':D[dt.getDay()]}</div>
+        <div class="sw-icon">🌊</div>
+        <div class="sw-height">${dayH!==null?dayH.toFixed(1):'--'}m</div>
+        <div class="sw-period">${daily.wave_period_max[i]!==null?daily.wave_period_max[i].toFixed(0)+'s':'--'}</div>
+      </div>`;
+    }
+    html+=`</div>`;
+  }
+
+  container.innerHTML=html;
 }
 
 // ============ STATE GRID ============
