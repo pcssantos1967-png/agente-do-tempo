@@ -134,6 +134,10 @@ Ubatuba, capitais principais.
 | `kiteRating(kmh)` | Retorna 0–10 para barra de kite |
 | `beaufort(kmh)` | Retorna string escala Beaufort |
 | `refreshAll()` | Re-renderiza unidades sem novo fetch |
+| `fetchINMETAlerts()` | Busca alertas oficiais INMET (skip mobile, cache 15min) |
+| `parseINMETRSS()` | Converte RSS do INMET para JSON |
+| `checkINMETAlerts()` | Verifica e exibe alertas INMET ativos |
+| `markAffectedStates()` | Adiciona indicadores nos estados afetados |
 
 ---
 

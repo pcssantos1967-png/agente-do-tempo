@@ -168,6 +168,96 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 .alert-badge-storm{background:#d32f2f;color:#fff;}
 .alert-badge-wind{background:#f57c00;color:#fff;}
 
+/* ===================== INMET OFFICIAL ALERTS ===================== */
+.inmet-banner{
+  position:fixed;top:0;left:0;right:0;z-index:7999;
+  transform:translateY(-100%);transition:transform .4s cubic-bezier(0.4,0,0.2,1);
+  pointer-events:none;
+}
+.inmet-banner.show{transform:translateY(0);pointer-events:auto;}
+.inmet-content{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;
+  font-family:'Orbitron';font-size:.55rem;letter-spacing:1px;
+}
+.inmet-badge{
+  background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;
+  font-weight:700;letter-spacing:2px;white-space:nowrap;
+}
+.inmet-evento{flex:1;font-family:'Syne';font-size:.7rem;letter-spacing:0;}
+.inmet-severidade{
+  padding:4px 10px;border-radius:12px;
+  background:rgba(255,255,255,0.2);font-weight:700;
+  text-transform:uppercase;font-size:.5rem;
+}
+.inmet-details{
+  background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);
+  color:inherit;padding:5px 12px;border-radius:12px;cursor:pointer;
+  font-family:'Orbitron';font-size:.45rem;letter-spacing:1px;
+  transition:all .2s;
+}
+.inmet-details:hover{background:rgba(255,255,255,0.3);}
+.inmet-close{
+  background:rgba(255,255,255,0.2);border:none;color:#fff;
+  width:24px;height:24px;border-radius:50%;cursor:pointer;
+  font-size:.8rem;transition:all .2s;
+}
+.inmet-close:hover{background:rgba(255,255,255,0.4);}
+
+/* INMET Severity Colors */
+.inmet-yellow{background:linear-gradient(90deg,#f9a825,#fbc02d);color:#000;box-shadow:0 4px 20px rgba(249,168,37,0.4);}
+.inmet-orange{background:linear-gradient(90deg,#ef6c00,#ff9800);color:#fff;box-shadow:0 4px 20px rgba(239,108,0,0.4);}
+.inmet-red{background:linear-gradient(90deg,#c62828,#e53935);color:#fff;box-shadow:0 4px 20px rgba(198,40,40,0.5);}
+
+/* INMET State Indicator */
+.inmet-indicator{
+  position:absolute;top:-4px;right:-4px;
+  width:14px;height:14px;border-radius:50%;
+  border:2px solid #fff;
+  box-shadow:0 0 8px currentColor;
+  z-index:100;
+}
+.inmet-indicator-yellow{background:#fbc02d;color:#fbc02d;}
+.inmet-indicator-orange{background:#ff9800;color:#ff9800;}
+.inmet-indicator-red{background:#e53935;color:#e53935;}
+
+/* INMET Modal */
+.inmet-modal{
+  position:fixed;inset:0;z-index:9000;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:opacity .3s;
+}
+.inmet-modal.show{opacity:1;pointer-events:auto;}
+.inmet-modal-content{
+  width:90%;max-width:500px;max-height:80vh;overflow-y:auto;
+  background:var(--card);border:2px solid var(--acc);border-radius:16px;
+  transform:scale(0.9);transition:transform .3s;
+}
+.inmet-modal.show .inmet-modal-content{transform:scale(1);}
+.inmet-modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--bdr);
+}
+.inmet-modal-title{
+  display:flex;align-items:center;gap:10px;
+  font-family:'Bebas Neue';font-size:1.4rem;letter-spacing:3px;color:var(--acc);
+}
+.inmet-modal-body{padding:16px;}
+.inmet-field{margin-bottom:12px;}
+.inmet-field-label{
+  font-family:'Orbitron';font-size:.45rem;letter-spacing:2px;
+  color:var(--acc);opacity:.7;margin-bottom:4px;
+}
+.inmet-field-value{font-family:'Syne';font-size:.8rem;line-height:1.4;}
+.inmet-link{
+  display:inline-block;margin-top:12px;padding:8px 16px;
+  background:var(--acc);color:var(--bg1);border-radius:8px;
+  text-decoration:none;font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+  transition:opacity .2s;
+}
+.inmet-link:hover{opacity:.8;}
+
 /* ===================== SPOT MODAL ===================== */
 .spot-modal{
   position:fixed;inset:0;z-index:8500;
@@ -715,8 +805,9 @@ header{
   }
   #fx,#windCanvas,#lightning,.wind-toggle{display:none!important;}
   .shell{transform:none!important;}
-  .card,.left-panel,.right-panel{backdrop-filter:none!important;}
+  .card,.left-panel,.right-panel,.inmet-modal-content{backdrop-filter:none!important;}
   .map-vignette{box-shadow:none!important;}
+  .inmet-indicator{display:none!important;} /* Hide INMET indicators on mobile */
 }
 </style>
 </head>
@@ -735,6 +826,33 @@ header{
     <span class="alert-icon" id="alertIcon">⚠️</span>
     <span class="alert-text" id="alertText">ALERTA</span>
     <button class="alert-close" id="alertClose">&times;</button>
+  </div>
+</div>
+
+<!-- INMET OFFICIAL ALERT BANNER -->
+<div class="inmet-banner" id="inmetBanner">
+  <div class="inmet-content" id="inmetContent">
+    <span class="inmet-badge">INMET OFICIAL</span>
+    <span class="inmet-evento" id="inmetEvento">Alerta meteorológico</span>
+    <span class="inmet-severidade" id="inmetSeveridade">PERIGO</span>
+    <button class="inmet-details" id="inmetDetails">Detalhes</button>
+    <button class="inmet-close" id="inmetClose">&times;</button>
+  </div>
+</div>
+
+<!-- INMET ALERT MODAL -->
+<div class="inmet-modal" id="inmetModal">
+  <div class="inmet-modal-content">
+    <div class="inmet-modal-header">
+      <div class="inmet-modal-title">
+        <span id="inmetModalIcon">⚠️</span>
+        <span id="inmetModalTitle">Alerta INMET</span>
+      </div>
+      <button class="inmet-close" id="inmetModalClose">&times;</button>
+    </div>
+    <div class="inmet-modal-body" id="inmetModalBody">
+      <!-- Content populated by JS -->
+    </div>
   </div>
 </div>
 
@@ -1575,12 +1693,273 @@ document.getElementById('alertClose').onclick=()=>{
   setTimeout(()=>{alertDismissed=false;},300000); // Reset after 5 min
 };
 
+// ============ INMET OFFICIAL ALERTS ============
+let inmetCache=null;
+let inmetCacheTime=0;
+const INMET_CACHE_TTL=15*60*1000; // 15 minutes
+let inmetDismissed=false;
+let currentINMETAlerts=[];
+
+// Area mapping: States → INMET area names
+const AREA_MAP={
+  'AC':['acre'],
+  'AL':['alagoas'],
+  'AM':['amazonas'],
+  'AP':['amapa','amapá'],
+  'BA':['bahia','sul da bahia','norte da bahia','recôncavo'],
+  'CE':['ceara','ceará','fortaleza'],
+  'DF':['distrito federal','brasilia','brasília'],
+  'ES':['espirito santo','espírito santo'],
+  'GO':['goias','goiás'],
+  'MA':['maranhao','maranhão'],
+  'MG':['minas gerais','sul de minas','triângulo mineiro','zona da mata','norte de minas'],
+  'MS':['mato grosso do sul'],
+  'MT':['mato grosso'],
+  'PA':['para','pará','belém'],
+  'PB':['paraiba','paraíba'],
+  'PE':['pernambuco','recife'],
+  'PI':['piaui','piauí'],
+  'PR':['parana','paraná','curitiba'],
+  'RJ':['rio de janeiro','região serrana','baixada fluminense','costa verde'],
+  'RN':['rio grande do norte'],
+  'RO':['rondonia','rondônia'],
+  'RR':['roraima'],
+  'RS':['rio grande do sul','serra gaúcha','litoral gaúcho'],
+  'SC':['santa catarina','litoral catarinense'],
+  'SE':['sergipe'],
+  'SP':['são paulo','sao paulo','vale do paraíba','litoral paulista','grande são paulo','litoral norte','litoral sul'],
+  'TO':['tocantins']
+};
+
+// Event icons mapping
+const INMET_ICONS={
+  'chuvas intensas':'🌧️',
+  'acumulado de chuva':'🌧️',
+  'tempestade':'⛈️',
+  'vendaval':'🌪️',
+  'ventos costeiros':'💨',
+  'baixa umidade':'🏜️',
+  'onda de calor':'🌡️',
+  'geada':'❄️',
+  'granizo':'🧊',
+  'default':'⚠️'
+};
+
+async function fetchINMETAlerts(){
+  // Skip on mobile for performance
+  if(isMobile)return[];
+
+  // Use cache if valid
+  if(inmetCache&&Date.now()-inmetCacheTime<INMET_CACHE_TTL){
+    return inmetCache;
+  }
+
+  try{
+    // Use CORS proxy for cross-origin request
+    const PROXY='https://corsproxy.io/?';
+    const url=PROXY+encodeURIComponent('https://apiprevmet3.inmet.gov.br/avisos/rss');
+    const r=await fetch(url,{timeout:10000});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const text=await r.text();
+    const alerts=parseINMETRSS(text);
+
+    inmetCache=alerts;
+    inmetCacheTime=Date.now();
+    console.log('INMET alerts loaded:',alerts.length);
+    return alerts;
+  }catch(e){
+    console.warn('INMET fetch error:',e);
+    return inmetCache||[]; // Return old cache if fetch fails
+  }
+}
+
+function parseINMETRSS(xmlText){
+  try{
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(xmlText,'text/xml');
+    const items=doc.querySelectorAll('item');
+
+    return Array.from(items).map(item=>{
+      const title=item.querySelector('title')?.textContent||'';
+      const desc=item.querySelector('description')?.textContent||'';
+      const link=item.querySelector('link')?.textContent||'';
+      const guid=item.querySelector('guid')?.textContent||'';
+      const pubDate=item.querySelector('pubDate')?.textContent||'';
+
+      // Parse description HTML
+      const tempDiv=document.createElement('div');
+      tempDiv.innerHTML=desc;
+
+      // Extract fields from table
+      const fields={};
+      const rows=tempDiv.querySelectorAll('tr');
+      rows.forEach(row=>{
+        const cells=row.querySelectorAll('td');
+        if(cells.length>=2){
+          const key=cells[0].textContent.trim().toLowerCase().replace(':','');
+          const val=cells[1].textContent.trim();
+          fields[key]=val;
+        }
+      });
+
+      // Determine severity class
+      let severityClass='inmet-yellow';
+      const sev=(fields['severidade']||title).toLowerCase();
+      if(sev.includes('grande perigo'))severityClass='inmet-red';
+      else if(sev.includes('perigo')&&!sev.includes('potencial'))severityClass='inmet-orange';
+
+      // Get event icon
+      const evento=(fields['evento']||'').toLowerCase();
+      let icon=INMET_ICONS['default'];
+      for(const[key,ico]of Object.entries(INMET_ICONS)){
+        if(evento.includes(key)){icon=ico;break;}
+      }
+
+      return{
+        id:guid,
+        title:title,
+        evento:fields['evento']||'Alerta Meteorológico',
+        severidade:fields['severidade']||'Perigo Potencial',
+        severityClass:severityClass,
+        icon:icon,
+        inicio:fields['início']||fields['inicio']||'',
+        fim:fields['fim']||'',
+        descricao:fields['descrição']||fields['descricao']||'',
+        area:fields['área']||fields['area']||'',
+        link:link,
+        pubDate:pubDate
+      };
+    });
+  }catch(e){
+    console.warn('INMET parse error:',e);
+    return[];
+  }
+}
+
+function isINMETAlertActive(alert){
+  if(!alert.fim)return true;
+  try{
+    // Parse Brazilian date format: DD/MM/YYYY HH:MM
+    const parts=alert.fim.match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2})?:?(\d{2})?/);
+    if(!parts)return true;
+    const endDate=new Date(parts[3],parts[2]-1,parts[1],parts[4]||23,parts[5]||59);
+    return Date.now()<endDate.getTime();
+  }catch(e){return true;}
+}
+
+function alertAffectsState(alertArea,stateCode){
+  if(!alertArea||!stateCode)return false;
+  const areas=AREA_MAP[stateCode]||[];
+  const areaLower=alertArea.toLowerCase();
+  return areas.some(a=>areaLower.includes(a));
+}
+
+function getHighestSeverity(alerts){
+  if(alerts.some(a=>a.severityClass==='inmet-red'))return'inmet-red';
+  if(alerts.some(a=>a.severityClass==='inmet-orange'))return'inmet-orange';
+  return'inmet-yellow';
+}
+
+async function checkINMETAlerts(){
+  // Skip on mobile for performance
+  if(isMobile)return;
+
+  const alerts=await fetchINMETAlerts();
+  currentINMETAlerts=alerts.filter(a=>isINMETAlertActive(a));
+
+  if(currentINMETAlerts.length>0&&!inmetDismissed){
+    showINMETBanner(currentINMETAlerts[0]);
+    markAffectedStates(currentINMETAlerts);
+  }
+}
+
+function showINMETBanner(alert){
+  const banner=document.getElementById('inmetBanner');
+  const content=document.getElementById('inmetContent');
+  document.getElementById('inmetEvento').textContent=`${alert.icon} ${alert.evento} - ${alert.area.substring(0,60)}${alert.area.length>60?'...':''}`;
+  document.getElementById('inmetSeveridade').textContent=alert.severidade;
+  content.className='inmet-content '+alert.severityClass;
+  banner.classList.add('show');
+}
+
+function hideINMETBanner(){
+  document.getElementById('inmetBanner').classList.remove('show');
+}
+
+function showINMETModal(alert){
+  const modal=document.getElementById('inmetModal');
+  document.getElementById('inmetModalIcon').textContent=alert.icon;
+  document.getElementById('inmetModalTitle').textContent=alert.evento;
+
+  const body=document.getElementById('inmetModalBody');
+  body.innerHTML=`
+    <div class="inmet-field">
+      <div class="inmet-field-label">SEVERIDADE</div>
+      <div class="inmet-field-value"><span class="inmet-severidade ${alert.severityClass}" style="display:inline-block;">${alert.severidade}</span></div>
+    </div>
+    <div class="inmet-field">
+      <div class="inmet-field-label">PERÍODO</div>
+      <div class="inmet-field-value">${alert.inicio||'N/A'} → ${alert.fim||'N/A'}</div>
+    </div>
+    <div class="inmet-field">
+      <div class="inmet-field-label">DESCRIÇÃO</div>
+      <div class="inmet-field-value">${escapeHtml(alert.descricao)||'Sem descrição disponível.'}</div>
+    </div>
+    <div class="inmet-field">
+      <div class="inmet-field-label">ÁREAS AFETADAS</div>
+      <div class="inmet-field-value">${escapeHtml(alert.area)||'Não especificado.'}</div>
+    </div>
+    ${alert.link?`<a href="${escapeHtml(alert.link)}" target="_blank" rel="noopener" class="inmet-link">VER NO INMET →</a>`:''}
+  `;
+  modal.classList.add('show');
+}
+
+function hideINMETModal(){
+  document.getElementById('inmetModal').classList.remove('show');
+}
+
+function markAffectedStates(alerts){
+  // Remove existing indicators
+  document.querySelectorAll('.inmet-indicator').forEach(el=>el.remove());
+
+  stateMarkers.forEach(({s,marker})=>{
+    const stateAlerts=alerts.filter(a=>alertAffectsState(a.area,s.code));
+    if(stateAlerts.length>0){
+      const severity=getHighestSeverity(stateAlerts);
+      const el=marker.getElement();
+      if(el){
+        const indicator=document.createElement('div');
+        indicator.className=`inmet-indicator inmet-indicator-${severity.replace('inmet-','')}`;
+        indicator.title=`${stateAlerts.length} alerta(s) INMET`;
+        el.style.position='relative';
+        el.appendChild(indicator);
+      }
+    }
+  });
+}
+
+// INMET Event Listeners
+document.getElementById('inmetClose').onclick=()=>{
+  inmetDismissed=true;
+  hideINMETBanner();
+  setTimeout(()=>{inmetDismissed=false;},600000); // Reset after 10 min
+};
+document.getElementById('inmetDetails').onclick=()=>{
+  if(currentINMETAlerts.length>0){
+    showINMETModal(currentINMETAlerts[0]);
+  }
+};
+document.getElementById('inmetModalClose').onclick=hideINMETModal;
+document.getElementById('inmetModal').onclick=(e)=>{
+  if(e.target.id==='inmetModal')hideINMETModal();
+};
+
 // ============ SPOT MODAL ============
 const spotModal=document.getElementById('spotModal');
 let currentSpot={name:'',lat:0,lon:0,type:''};
 document.getElementById('spotModalClose').onclick=()=>spotModal.classList.remove('show');
 spotModal.onclick=(e)=>{if(e.target===spotModal)spotModal.classList.remove('show');};
-document.addEventListener('keydown',(e)=>{if(e.key==='Escape')spotModal.classList.remove('show');});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){spotModal.classList.remove('show');hideINMETModal();}});
 
 async function openSpotModal(name,lat,lon,type){
   // Sanitize inputs for security
@@ -2386,6 +2765,9 @@ async function init(){
     syncWindCanvas();
     if(!windAnimId)renderWindParticles();
   }
+
+  // Check INMET official alerts (skip on mobile for performance)
+  checkINMETAlerts();
 
   // Open shared spot modal after everything loads
   if(sharedSpot){
