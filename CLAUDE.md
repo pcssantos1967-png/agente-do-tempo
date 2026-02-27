@@ -201,7 +201,7 @@ grep -n "function fw\|function loadMain\|function setTheme" index.html
 > Implementar em ordem de prioridade:
 
 1. **[x] Previsão de ondas real** — integrar Open-Meteo `wave_height` e `swell_wave_height` ✅
-2. **[ ] Modo noturno automático** — detectar hora local e ajustar brilho do mapa
+2. **[x] Modo noturno automático** — detectar hora local e ajustar brilho do mapa ✅
 3. **[ ] Alertas reais** — Open-Meteo `precipitation_probability > 80%` → badge vermelho
 4. **[ ] Página de spot** — click no marcador abre modal com histórico 7 dias
 5. **[ ] PWA** — adicionar `manifest.json` + service worker para instalação
