@@ -76,6 +76,24 @@ body{font-family:'Syne',sans-serif;perspective:var(--perspective);transition:all
 
 body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 
+/* ===================== NIGHT MODE ===================== */
+.night-mode #map{filter:var(--map-filter) brightness(0.6)!important;}
+.night-mode .map-overlay{background:rgba(0,0,20,0.4)!important;}
+.night-mode .map-vignette{box-shadow:inset 0 0 200px rgba(0,0,30,0.8)!important;}
+.night-mode .shell{filter:brightness(0.92);}
+.night-mode #fx-overlay{opacity:1;background:linear-gradient(180deg, rgba(0,0,30,0.25) 0%, transparent 30%, transparent 70%, rgba(0,0,40,0.3) 100%)!important;}
+.night-indicator{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:15px;
+  background:rgba(0,0,0,0.3);border:1px solid var(--bdr);
+  font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+  transition:all .3s;cursor:pointer;
+}
+.night-indicator:hover{background:rgba(255,255,255,0.1);border-color:var(--acc);}
+.night-indicator .ni-icon{font-size:1rem;transition:transform .5s;}
+.night-indicator.is-night .ni-icon{transform:rotate(360deg);}
+.night-indicator .ni-text{opacity:.7;}
+
 /* ===================== SPORT MODES ===================== */
 .mode-surf{--sport-color:#0097a7;}
 .mode-kite{--sport-color:#7c4dff;}
@@ -524,6 +542,10 @@ header{
         <button class="ubtn on" id="bKmh">KM/H</button>
         <button class="ubtn" id="bKt">NOS</button>
       </div>
+      <div class="night-indicator" id="nightIndicator" title="Modo dia/noite automatico">
+        <span class="ni-icon" id="niIcon">&#9728;&#65039;</span>
+        <span class="ni-text" id="niText">DIA</span>
+      </div>
       <span class="live-clk" id="clk">--:--</span>
     </div>
   </header>
@@ -891,12 +913,33 @@ document.querySelectorAll('.sport-btn').forEach(b=>{
   });
 });
 
-// ============ CLOCK ============
+// ============ CLOCK & NIGHT MODE ============
+let isNight=false,nightModeAuto=true;
+function isNightTime(hour){return hour>=18||hour<6;}
+function updateNightMode(forceNight=null){
+  const brt=new Date(new Date().toLocaleString('en',{timeZone:'America/Sao_Paulo'}));
+  const hour=brt.getHours();
+  const shouldBeNight=forceNight!==null?forceNight:(nightModeAuto?isNightTime(hour):isNight);
+  if(shouldBeNight!==isNight){
+    isNight=shouldBeNight;
+    document.body.classList.toggle('night-mode',isNight);
+    document.getElementById('niIcon').textContent=isNight?'\uD83C\uDF19':'\u2600\uFE0F';
+    document.getElementById('niText').textContent=isNight?'NOITE':'DIA';
+    document.getElementById('nightIndicator').classList.toggle('is-night',isNight);
+  }
+}
 function tick(){
   const brt=new Date(new Date().toLocaleString('en',{timeZone:'America/Sao_Paulo'}));
   document.getElementById('clk').textContent=brt.toTimeString().slice(0,5);
+  updateNightMode();
 }
 setInterval(tick,1000);tick();
+// Night mode toggle (click to override, returns to auto after 60s)
+document.getElementById('nightIndicator').onclick=()=>{
+  nightModeAuto=false;
+  updateNightMode(!isNight);
+  setTimeout(()=>{nightModeAuto=true;},60000);
+};
 
 // ============ UNITS ============
 document.getElementById('bC').onclick=()=>{celsius=true;document.getElementById('bC').classList.add('on');document.getElementById('bF').classList.remove('on');refreshAll();};
