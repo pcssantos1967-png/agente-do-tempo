@@ -72,10 +72,24 @@ Jericoacoara, Cumbuco, Preá, São Miguel do Gostoso, Atins, Florianópolis, Ilh
 - Clique em qualquer ponto para ver clima
 - Marcador de localização do usuário com pulso
 
-### Sistema de Temas (Auto-rotação 8s)
-- **Chuva**: 110 gotas, bg `#030d1c`, acc `#4fc3f7`
-- **Sol**: 45 partículas, bg `#a83200`, acc `#ffe566`
-- **Nublado**: 8 nuvens, bg `#141e2c`, acc `#a0bcd8`
+### Sistema de Temas (Auto por Clima Real + Morphing)
+O tema muda automaticamente baseado no clima real da localização:
+
+| Código WMO | Condição | Tema |
+|------------|----------|------|
+| 0-2 | Céu limpo / Parcialmente nublado | Sol |
+| 3-49 | Nublado / Nevoeiro | Nublado |
+| 50+ | Chuva / Neve / Tempestade | Chuva |
+
+**Características:**
+- **Chuva**: 110 gotas diagonais, bg `#030d1c`, acc `#4fc3f7`
+- **Sol**: 45 partículas flutuantes, bg `#a83200`, acc `#ffe566`
+- **Nublado**: 8 nuvens elípticas, bg `#141e2c`, acc `#a0bcd8`
+
+**Transição Morphing (1.8s):**
+- Transições CSS suaves entre cores, backgrounds e filtros
+- Partículas fazem fade gradual ao trocar de tema
+- Override manual disponível (retorna ao auto após 30s)
 
 ## Tecnologias
 
@@ -142,10 +156,12 @@ https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
 | Função | Responsabilidade |
 |--------|------------------|
 | `fw(lat, lon)` | Fetch Open-Meteo com cache |
-| `loadMain(lat, lon, city)` | Popula painel esquerdo |
+| `loadMain(lat, lon, city)` | Popula painel esquerdo + auto-tema |
 | `placeStateMarkers()` | Carrega 27 estados em paralelo |
 | `placeSpotMarkers()` | Carrega 26 spots |
-| `setTheme(t)` | Troca tema + flash + partículas |
+| `wmoToTheme(wCode)` | Mapeia código WMO → tema |
+| `setTheme(t, manual)` | Troca tema com morphing suave |
+| `setThemeByWeather(wCode)` | Auto-seleciona tema pelo clima |
 | `buildWindTable(daily)` | Tabela Windguru-style |
 | `buildHours(hourly)` | Strip horária 12h |
 | `surfCondition(wCode, windKmh)` | Retorna {label, cls, stars} |
