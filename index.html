@@ -513,6 +513,36 @@ header{
 .wq-flat{background:linear-gradient(135deg,#37474f,#546e7a);color:#fff;}
 .no-wave-data{font-family:'Orbitron';font-size:.5rem;opacity:.4;text-align:center;padding:20px;letter-spacing:1px;}
 
+/* ===================== TIDE CARD ===================== */
+.tide-display{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.tide-icon{font-size:2rem;filter:drop-shadow(0 0 10px var(--acc));}
+.tide-data{flex:1;}
+.tide-status{font-family:'Bebas Neue';font-size:1.4rem;color:var(--acc);line-height:1;}
+.tide-time{font-family:'Orbitron';font-size:.5rem;opacity:.7;margin-top:4px;letter-spacing:1px;}
+.tide-curve{
+  position:relative;height:60px;margin:12px 0;
+  background:rgba(0,0,0,0.2);border-radius:10px;overflow:hidden;
+  border:1px solid var(--bdr);
+}
+.tide-curve-svg{width:100%;height:100%;}
+.tide-curve-line{fill:none;stroke:var(--acc);stroke-width:2;opacity:0.8;}
+.tide-curve-fill{fill:url(#tideGradient);opacity:0.3;}
+.tide-curve-marker{fill:var(--acc);filter:drop-shadow(0 0 5px var(--acc));}
+.tide-times{display:flex;justify-content:space-between;margin-top:8px;}
+.tide-event{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:6px 10px;border-radius:8px;background:rgba(0,0,0,0.2);
+  border:1px solid var(--bdr);flex:1;margin:0 2px;
+}
+.tide-event-icon{font-size:1rem;}
+.tide-event-type{font-family:'Orbitron';font-size:.4rem;opacity:.6;letter-spacing:1px;}
+.tide-event-time{font-family:'Bebas Neue';font-size:1rem;color:var(--acc);}
+.tide-event.next{border-color:var(--acc);background:rgba(255,255,255,0.05);}
+.tide-moon{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);}
+.tide-moon-icon{font-size:1.5rem;}
+.tide-moon-info{font-family:'Orbitron';font-size:.45rem;opacity:.7;letter-spacing:1px;}
+.tide-approx{font-family:'Orbitron';font-size:.4rem;opacity:.4;text-align:center;margin-top:8px;letter-spacing:1px;}
+
 /* ===================== HOURLY STRIP ===================== */
 .hour-strip{display:flex;gap:4px;overflow-x:auto;padding:6px 0;}
 .hour-strip::-webkit-scrollbar{height:3px;}
@@ -812,6 +842,14 @@ header{
       <div class="clabel">&#127754; ONDAS</div>
       <div id="waveContent">
         <div class="no-wave-data">CARREGANDO DADOS DE ONDAS...</div>
+      </div>
+    </div>
+
+    <!-- TIDES -->
+    <div class="card" id="tideCard">
+      <div class="clabel">&#127754; MARES</div>
+      <div id="tideContent">
+        <div class="no-wave-data">CALCULANDO MARES...</div>
       </div>
     </div>
 
@@ -1458,6 +1496,138 @@ function waveDir(deg){
   return dirs[Math.round(deg/45)%8];
 }
 
+// ============ TIDE CALCULATIONS (Lunar Approximation) ============
+function getMoonPhase(date=new Date()){
+  // Simplified lunar phase calculation
+  const lp=2551443; // Lunar period in seconds
+  const newMoon=new Date(1970,0,7,20,35,0).getTime()/1000;
+  const phase=((date.getTime()/1000-newMoon)%lp)/lp;
+  return phase;
+}
+
+function getMoonInfo(phase){
+  if(phase<0.03||phase>0.97)return{icon:'🌑',name:'LUA NOVA',tideStr:'MARES VIVAS'};
+  if(phase<0.22)return{icon:'🌒',name:'CRESCENTE',tideStr:'MARES MEDIAS'};
+  if(phase<0.28)return{icon:'🌓',name:'QUARTO CRESC.',tideStr:'MARES MORTAS'};
+  if(phase<0.47)return{icon:'🌔',name:'GIBOSA CRESC.',tideStr:'MARES MEDIAS'};
+  if(phase<0.53)return{icon:'🌕',name:'LUA CHEIA',tideStr:'MARES VIVAS'};
+  if(phase<0.72)return{icon:'🌖',name:'GIBOSA MING.',tideStr:'MARES MEDIAS'};
+  if(phase<0.78)return{icon:'🌗',name:'QUARTO MING.',tideStr:'MARES MORTAS'};
+  return{icon:'🌘',name:'MINGUANTE',tideStr:'MARES MEDIAS'};
+}
+
+function getTideEvents(date=new Date()){
+  // Simplified tide calculation based on lunar position
+  // Average tide cycle ~12h 25min
+  const tideCycle=12*60+25; // minutes
+  const phase=getMoonPhase(date);
+
+  // Base high tide at moon transit (simplified)
+  const dayStart=new Date(date);
+  dayStart.setHours(0,0,0,0);
+  const moonTransit=(phase*24*60)%1440; // minutes from midnight
+
+  // Calculate 4 tide events (2 high, 2 low)
+  const events=[];
+  const highTide1=(moonTransit)%1440;
+  const lowTide1=(moonTransit+tideCycle/2)%1440;
+  const highTide2=(moonTransit+tideCycle)%1440;
+  const lowTide2=(moonTransit+tideCycle*1.5)%1440;
+
+  [
+    {m:highTide1,type:'ALTA',icon:'⬆️'},
+    {m:lowTide1,type:'BAIXA',icon:'⬇️'},
+    {m:highTide2,type:'ALTA',icon:'⬆️'},
+    {m:lowTide2,type:'BAIXA',icon:'⬇️'}
+  ].sort((a,b)=>a.m-b.m).forEach(e=>{
+    const h=Math.floor(e.m/60);
+    const m=Math.floor(e.m%60);
+    events.push({...e,time:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`});
+  });
+
+  return events;
+}
+
+function getCurrentTideStatus(events){
+  const now=new Date();
+  const nowMins=now.getHours()*60+now.getMinutes();
+
+  for(let i=0;i<events.length;i++){
+    const [h,m]=events[i].time.split(':').map(Number);
+    const evtMins=h*60+m;
+    if(evtMins>nowMins){
+      const prev=events[(i-1+4)%4];
+      const isRising=events[i].type==='ALTA';
+      return{
+        status:isRising?'SUBINDO':'DESCENDO',
+        icon:isRising?'📈':'📉',
+        next:events[i],
+        nextIdx:i
+      };
+    }
+  }
+  return{status:'SUBINDO',icon:'📈',next:events[0],nextIdx:0};
+}
+
+function buildTides(){
+  const container=document.getElementById('tideContent');
+  const phase=getMoonPhase();
+  const moonInfo=getMoonInfo(phase);
+  const events=getTideEvents();
+  const status=getCurrentTideStatus(events);
+
+  // Build SVG tide curve
+  const curvePoints=[];
+  for(let i=0;i<=100;i++){
+    const t=i/100;
+    const y=50-40*Math.sin(t*Math.PI*4+phase*Math.PI*2);
+    curvePoints.push(`${i},${y}`);
+  }
+
+  // Current position on curve
+  const now=new Date();
+  const nowPct=(now.getHours()*60+now.getMinutes())/1440*100;
+
+  let html=`
+    <div class="tide-display">
+      <div class="tide-icon">${status.icon}</div>
+      <div class="tide-data">
+        <div class="tide-status">MARE ${status.status}</div>
+        <div class="tide-time">PROXIMA ${status.next.type}: ${status.next.time}</div>
+      </div>
+    </div>
+    <div class="tide-curve">
+      <svg class="tide-curve-svg" viewBox="0 0 100 60" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="tideGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:var(--acc);stop-opacity:0.5"/>
+            <stop offset="100%" style="stop-color:var(--acc);stop-opacity:0"/>
+          </linearGradient>
+        </defs>
+        <path class="tide-curve-fill" d="M0,60 L0,${curvePoints[0].split(',')[1]} ${curvePoints.map(p=>'L'+p).join(' ')} L100,60 Z"/>
+        <polyline class="tide-curve-line" points="${curvePoints.join(' ')}"/>
+        <circle class="tide-curve-marker" cx="${nowPct}" cy="${50-40*Math.sin(nowPct/100*Math.PI*4+phase*Math.PI*2)}" r="3"/>
+      </svg>
+    </div>
+    <div class="tide-times">
+      ${events.map((e,i)=>`
+        <div class="tide-event${i===status.nextIdx?' next':''}">
+          <span class="tide-event-icon">${e.icon}</span>
+          <span class="tide-event-type">${e.type}</span>
+          <span class="tide-event-time">${e.time}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="tide-moon">
+      <span class="tide-moon-icon">${moonInfo.icon}</span>
+      <span class="tide-moon-info">${moonInfo.name} · ${moonInfo.tideStr}</span>
+    </div>
+    <div class="tide-approx">* CALCULO APROXIMADO BASEADO EM CICLO LUNAR</div>
+  `;
+
+  container.innerHTML=html;
+}
+
 // ============ FETCH MARINE ============
 let marineCache={};
 async function fwMarine(lat,lon){
@@ -1582,6 +1752,8 @@ async function loadMain(lat,lon,city){
   showAlert(alert);
   // Load marine/wave data
   fwMarine(lat,lon).then(marine=>buildWaves(marine));
+  // Build tide display
+  buildTides();
   if(userMarker)map.removeLayer(userMarker);
   userMarker=L.marker([lat,lon],{icon:makeUserIcon(),zIndexOffset:1000}).addTo(map);
 }
