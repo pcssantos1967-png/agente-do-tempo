@@ -206,6 +206,27 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
   .spot-current{flex-direction:column;text-align:center;}
 }
 
+/* ===================== SHARE BUTTON ===================== */
+.share-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:20px;
+  background:rgba(255,255,255,0.1);border:1px solid var(--bdr);
+  color:var(--txt);font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+  cursor:pointer;transition:all .2s;
+}
+.share-btn:hover{background:var(--acc);color:var(--bg1);border-color:var(--acc);}
+.share-btn .share-icon{font-size:1rem;}
+.share-toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);
+  background:var(--acc);color:var(--bg1);
+  padding:12px 24px;border-radius:25px;
+  font-family:'Orbitron';font-size:.6rem;letter-spacing:2px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  opacity:0;transition:all .4s cubic-bezier(0.4,0,0.2,1);
+  z-index:9999;pointer-events:none;
+}
+.share-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
 /* ===================== SPORT MODES ===================== */
 .mode-surf{--sport-color:#0097a7;}
 .mode-kite{--sport-color:#7c4dff;}
@@ -638,7 +659,10 @@ header{
         <span class="smt-icon" id="smtIcon">🏖️</span>
         <span id="smtName">SPOT</span>
       </div>
-      <button class="spot-modal-close" id="spotModalClose">&times;</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="share-btn" id="shareBtn"><span class="share-icon">📤</span>COMPARTILHAR</button>
+        <button class="spot-modal-close" id="spotModalClose">&times;</button>
+      </div>
     </div>
     <div class="spot-modal-body">
       <div class="spot-current" id="spotCurrent">
@@ -658,6 +682,9 @@ header{
     </div>
   </div>
 </div>
+
+<!-- SHARE TOAST -->
+<div class="share-toast" id="shareToast">LINK COPIADO!</div>
 
 <!-- CINEMATIC WIPE -->
 <div id="wipe"></div>
@@ -1161,11 +1188,13 @@ document.getElementById('alertClose').onclick=()=>{
 
 // ============ SPOT MODAL ============
 const spotModal=document.getElementById('spotModal');
+let currentSpot={name:'',lat:0,lon:0,type:''};
 document.getElementById('spotModalClose').onclick=()=>spotModal.classList.remove('show');
 spotModal.onclick=(e)=>{if(e.target===spotModal)spotModal.classList.remove('show');};
 document.addEventListener('keydown',(e)=>{if(e.key==='Escape')spotModal.classList.remove('show');});
 
 async function openSpotModal(name,lat,lon,type){
+  currentSpot={name,lat,lon,type};
   const icons={surf:'🏄',kite:'🪁',wind:'🏄',sail:'⛵',fish:'🎣',state:'📍'};
   document.getElementById('smtIcon').textContent=icons[type]||'🏖️';
   document.getElementById('smtName').textContent=name.toUpperCase();
@@ -1222,6 +1251,67 @@ async function openSpotModal(name,lat,lon,type){
     document.getElementById('scDesc').textContent='ERRO AO CARREGAR';
     document.getElementById('spotForecast').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:#f44336;">ERRO AO CARREGAR DADOS</div>';
   }
+}
+
+// ============ SHARE FUNCTIONALITY ============
+function showToast(msg){
+  const toast=document.getElementById('shareToast');
+  toast.textContent=msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),2500);
+}
+function generateShareUrl(){
+  const base=window.location.origin+window.location.pathname;
+  const params=new URLSearchParams({
+    spot:currentSpot.name,
+    lat:currentSpot.lat.toFixed(4),
+    lon:currentSpot.lon.toFixed(4),
+    type:currentSpot.type||'surf'
+  });
+  return base+'?'+params.toString();
+}
+async function shareSpot(){
+  const url=generateShareUrl();
+  const title=`MetBrasil - ${currentSpot.name}`;
+  const text=`Confira as condicoes em ${currentSpot.name} no MetBrasil!`;
+
+  if(navigator.share){
+    try{
+      await navigator.share({title,text,url});
+    }catch(e){
+      if(e.name!=='AbortError')copyToClipboard(url);
+    }
+  }else{
+    copyToClipboard(url);
+  }
+}
+function copyToClipboard(text){
+  navigator.clipboard.writeText(text).then(()=>{
+    showToast('LINK COPIADO!');
+  }).catch(()=>{
+    // Fallback for older browsers
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    showToast('LINK COPIADO!');
+  });
+}
+document.getElementById('shareBtn').onclick=shareSpot;
+
+// Parse URL parameters on load
+function parseUrlParams(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.has('spot')&&params.has('lat')&&params.has('lon')){
+    const name=params.get('spot');
+    const lat=parseFloat(params.get('lat'));
+    const lon=parseFloat(params.get('lon'));
+    const type=params.get('type')||'surf';
+    if(!isNaN(lat)&&!isNaN(lon)){
+      return{name,lat,lon,type};
+    }
+  }
+  return null;
 }
 
 // ============ WAVE HELPERS ============
@@ -1541,6 +1631,10 @@ function refreshAll(){
 async function init(){
   initMap(-14,-52);
   startLightning();
+
+  // Check for shared spot URL
+  const sharedSpot=parseUrlParams();
+
   try{
     const r=await fetch('https://ipapi.co/json/');
     const d=await r.json();
@@ -1552,6 +1646,14 @@ async function init(){
     await loadMain(uLat,uLon,'Sao Paulo, SP');
   }
   await placeStateMarkers();
+
+  // Open shared spot modal after everything loads
+  if(sharedSpot){
+    setTimeout(()=>{
+      map.setView([sharedSpot.lat,sharedSpot.lon],10,{animate:true});
+      openSpotModal(sharedSpot.name,sharedSpot.lat,sharedSpot.lon,sharedSpot.type);
+    },1500);
+  }
 }
 init();
 
