@@ -103,6 +103,25 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 .night-indicator.is-night .ni-icon{transform:rotate(360deg);}
 .night-indicator .ni-text{opacity:.7;}
 
+/* ===================== LANGUAGE TOGGLE ===================== */
+.lang-toggle{
+  display:flex;align-items:center;gap:2px;
+  padding:3px;border-radius:15px;
+  background:rgba(0,0,0,0.3);border:1px solid var(--bdr);
+  font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+}
+.lang-btn{
+  padding:4px 8px;border-radius:12px;border:none;
+  background:transparent;color:var(--txt);cursor:pointer;
+  font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+  transition:all .3s;opacity:.5;
+}
+.lang-btn:hover{opacity:.8;}
+.lang-btn.on{
+  background:var(--acc);color:#000;opacity:1;
+  box-shadow:0 0 10px var(--glow);
+}
+
 /* ===================== WEATHER ALERTS ===================== */
 .alert-banner{
   position:fixed;top:0;left:0;right:0;z-index:8000;
@@ -770,6 +789,10 @@ header{
         <span class="ni-icon" id="niIcon">&#9728;&#65039;</span>
         <span class="ni-text" id="niText">DIA</span>
       </div>
+      <div class="lang-toggle" id="langToggle">
+        <button class="lang-btn on" id="langPT">PT</button>
+        <button class="lang-btn" id="langEN">EN</button>
+      </div>
       <span class="live-clk" id="clk">--:--</span>
     </div>
   </header>
@@ -827,7 +850,7 @@ header{
       <div class="kite-bar">
         <div class="clabel" style="margin-bottom:4px;">&#129667; RATING KITE</div>
         <div class="kite-track"><div class="kite-fill" id="kiteFill" style="width:0%"></div></div>
-        <div class="kite-label"><span>FRACO</span><span id="kiteVal">0/10</span><span>FORTE</span></div>
+        <div class="kite-label"><span id="kiteLow">FRACO</span><span id="kiteVal">0/10</span><span id="kiteHigh">FORTE</span></div>
       </div>
     </div>
 
@@ -962,6 +985,96 @@ const TILES={
   sun:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
   cloudy:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 };
+
+// ============ i18n TRANSLATIONS ============
+const i18n={
+  pt:{
+    // Header
+    rain:'CHUVA',sun:'SOL',cloudy:'NUBLADO',day:'DIA',night:'NOITE',
+    // Sport bar
+    surf:'SURF',kite:'KITE',windsurf:'WINDSURF',paraglide:'PARAPENTE',sail:'VELA',fish:'PESCA',
+    // Labels
+    currentCondition:'CONDICAO ATUAL',wind:'VENTO',kiteRating:'RATING KITE',
+    forecast12h:'PREVISAO 12H',waves:'ONDAS',tides:'MARES',data:'DADOS',
+    wind5days:'VENTO 5 DIAS',legend:'LEGENDA',
+    // Kite labels
+    kiteLow:'FRACO',kiteHigh:'FORTE',
+    // Placeholders
+    searchPlaceholder:'BUSCAR LOCAL...',detecting:'Detectando...',waitingData:'Aguardando dados...',
+    calculatingTides:'CALCULANDO MARES...',noWaveData:'SEM DADOS DE ONDAS',
+    // Conditions
+    epic:'EPICO!',good:'BOM',fair:'RAZOAVEL',poor:'FRACO',flat:'SEM VENTO',dangerous:'PERIGOSO',bad:'RUIM',
+    // Wind rose
+    beaufortCalm:'Calmaria',beaufortLight:'Aragem',beaufortBreezeLight:'Brisa leve',
+    beaufortBreeze:'Brisa fraca',beaufortBreezeMod:'Brisa mod.',beaufortBreezeFresh:'Brisa forte',
+    beaufortBreezeStrong:'Vento fresco',beaufortNear:'Vento forte',beaufortGale:'Ventania',
+    beaufortGaleStrong:'Vendaval',beaufortStorm:'Tempestade',beaufortViolent:'Tempest. viol.',beaufortHurricane:'Furacao',
+    // Data labels
+    humidity:'UMID.',feelsLike:'SENS.',gusts:'RAJADAS',pressure:'PRESSAO',visibility:'VISIB.',clouds:'NUVENS',
+    // Waves
+    waveHeight:'Altura',wavePeriod:'Periodo',waveDir:'Direcao',swell:'Swell',
+    // Tides
+    tideRising:'MARE SUBINDO',tideFalling:'MARE DESCENDO',tideHigh:'ALTA',tideLow:'BAIXA',
+    nextTide:'prox. mare',lunarApprox:'Aproximacao baseada em fase lunar',
+    // Moon phases
+    newMoon:'LUA NOVA',waxingCres:'CRESCENTE',firstQuarter:'QUARTO CRESC.',waxingGib:'GIBOSA CRESC.',
+    fullMoon:'LUA CHEIA',waningGib:'GIBOSA MING.',lastQuarter:'QUARTO MING.',waningCres:'MINGUANTE',
+    springTides:'MARES VIVAS',neapTides:'MARES MORTAS',mediumTides:'MARES MEDIAS',
+    // Alerts
+    alertStorm:'ALERTA DE TEMPESTADE - Evite atividades ao ar livre!',
+    alertRain:'ALTA PROBABILIDADE DE CHUVA',alertWind:'VENTOS FORTES',alertHeat:'CALOR EXTREMO',
+    // Share
+    shareTitle:'Condicoes em',linkCopied:'LINK COPIADO!',
+    // Modal
+    close:'Fechar',forecast7days:'Previsao 7 dias',share:'Compartilhar',
+    // Legend
+    cold:'Frio',warm:'Morno',hot:'Quente',
+  },
+  en:{
+    // Header
+    rain:'RAIN',sun:'SUN',cloudy:'CLOUDY',day:'DAY',night:'NIGHT',
+    // Sport bar
+    surf:'SURF',kite:'KITE',windsurf:'WINDSURF',paraglide:'PARAGLIDING',sail:'SAILING',fish:'FISHING',
+    // Labels
+    currentCondition:'CURRENT CONDITION',wind:'WIND',kiteRating:'KITE RATING',
+    forecast12h:'12H FORECAST',waves:'WAVES',tides:'TIDES',data:'DATA',
+    wind5days:'5 DAY WIND',legend:'LEGEND',
+    // Kite labels
+    kiteLow:'WEAK',kiteHigh:'STRONG',
+    // Placeholders
+    searchPlaceholder:'SEARCH LOCATION...',detecting:'Detecting...',waitingData:'Waiting for data...',
+    calculatingTides:'CALCULATING TIDES...',noWaveData:'NO WAVE DATA',
+    // Conditions
+    epic:'EPIC!',good:'GOOD',fair:'FAIR',poor:'POOR',flat:'NO WIND',dangerous:'DANGEROUS',bad:'BAD',
+    // Wind rose
+    beaufortCalm:'Calm',beaufortLight:'Light air',beaufortBreezeLight:'Light breeze',
+    beaufortBreeze:'Gentle breeze',beaufortBreezeMod:'Mod. breeze',beaufortBreezeFresh:'Fresh breeze',
+    beaufortBreezeStrong:'Strong breeze',beaufortNear:'Near gale',beaufortGale:'Gale',
+    beaufortGaleStrong:'Strong gale',beaufortStorm:'Storm',beaufortViolent:'Violent storm',beaufortHurricane:'Hurricane',
+    // Data labels
+    humidity:'HUMID.',feelsLike:'FEELS',gusts:'GUSTS',pressure:'PRESS.',visibility:'VISIB.',clouds:'CLOUDS',
+    // Waves
+    waveHeight:'Height',wavePeriod:'Period',waveDir:'Direction',swell:'Swell',
+    // Tides
+    tideRising:'TIDE RISING',tideFalling:'TIDE FALLING',tideHigh:'HIGH',tideLow:'LOW',
+    nextTide:'next tide',lunarApprox:'Lunar phase approximation',
+    // Moon phases
+    newMoon:'NEW MOON',waxingCres:'WAXING CRESCENT',firstQuarter:'FIRST QUARTER',waxingGib:'WAXING GIBBOUS',
+    fullMoon:'FULL MOON',waningGib:'WANING GIBBOUS',lastQuarter:'LAST QUARTER',waningCres:'WANING CRESCENT',
+    springTides:'SPRING TIDES',neapTides:'NEAP TIDES',mediumTides:'MEDIUM TIDES',
+    // Alerts
+    alertStorm:'STORM ALERT - Avoid outdoor activities!',
+    alertRain:'HIGH RAIN PROBABILITY',alertWind:'STRONG WINDS',alertHeat:'EXTREME HEAT',
+    // Share
+    shareTitle:'Conditions at',linkCopied:'LINK COPIED!',
+    // Modal
+    close:'Close',forecast7days:'7 day forecast',share:'Share',
+    // Legend
+    cold:'Cold',warm:'Warm',hot:'Hot',
+  }
+};
+let curLang='pt';
+function t(key){return i18n[curLang][key]||key;}
 
 // ============ STATE ============
 let cache={},celsius=true,knots=false,curTheme='rain',curSport='surf',autoMode=true;
@@ -1301,20 +1414,21 @@ function wmoDesc(c){if(c===0)return'CEU LIMPO';if(c<=2)return'PARCIALMENTE NUBLA
 
 // ============ CONDITION LOGIC ============
 function surfCondition(wCode,windKmh){
-  if(wCode>=95)return{label:'PERIGOSO',cls:'cond-poor',stars:0};
-  if(wCode>=80)return{label:'RUIM',cls:'cond-poor',stars:1};
-  if(windKmh<5)return{label:'SEM VENTO',cls:'cond-flat',stars:2};
-  if(windKmh>=15&&windKmh<=30&&wCode<=3)return{label:'EPICO!',cls:'cond-epic',stars:5};
-  if(windKmh>=10&&windKmh<=35&&wCode<=10)return{label:'BOM',cls:'cond-good',stars:4};
-  if(windKmh>=8&&wCode<=20)return{label:'RAZOAVEL',cls:'cond-fair',stars:3};
-  return{label:'FRACO',cls:'cond-poor',stars:1};
+  if(wCode>=95)return{label:t('dangerous'),cls:'cond-poor',stars:0};
+  if(wCode>=80)return{label:t('bad'),cls:'cond-poor',stars:1};
+  if(windKmh<5)return{label:t('flat'),cls:'cond-flat',stars:2};
+  if(windKmh>=15&&windKmh<=30&&wCode<=3)return{label:t('epic'),cls:'cond-epic',stars:5};
+  if(windKmh>=10&&windKmh<=35&&wCode<=10)return{label:t('good'),cls:'cond-good',stars:4};
+  if(windKmh>=8&&wCode<=20)return{label:t('fair'),cls:'cond-fair',stars:3};
+  return{label:t('poor'),cls:'cond-poor',stars:1};
 }
 function kiteRating(kmh){if(kmh<8)return 1;if(kmh<12)return 3;if(kmh<16)return 5;if(kmh<22)return 8;if(kmh<30)return 10;if(kmh<40)return 7;if(kmh<50)return 5;return 3;}
 function beaufort(kmh){
-  if(kmh<1)return'CALMO (0)';if(kmh<6)return'ARAGEM (1)';if(kmh<12)return'BRISA LEVE (2)';if(kmh<20)return'BRISA FRACA (3)';
-  if(kmh<29)return'BRISA MODERADA (4)';if(kmh<39)return'BRISA FORTE (5)';if(kmh<50)return'VENTO FRESCO (6)';
-  if(kmh<62)return'VENTO FORTE (7)';if(kmh<75)return'VENTANIA (8)';if(kmh<89)return'VENTANIA FORTE (9)';
-  if(kmh<103)return'TEMPESTADE (10)';if(kmh<118)return'TEMPESTADE VIOLENTA (11)';return'FURACAO (12)';
+  if(kmh<1)return t('beaufortCalm')+' (0)';if(kmh<6)return t('beaufortLight')+' (1)';if(kmh<12)return t('beaufortBreezeLight')+' (2)';
+  if(kmh<20)return t('beaufortBreeze')+' (3)';if(kmh<29)return t('beaufortBreezeMod')+' (4)';if(kmh<39)return t('beaufortBreezeFresh')+' (5)';
+  if(kmh<50)return t('beaufortBreezeStrong')+' (6)';if(kmh<62)return t('beaufortNear')+' (7)';if(kmh<75)return t('beaufortGale')+' (8)';
+  if(kmh<89)return t('beaufortGaleStrong')+' (9)';if(kmh<103)return t('beaufortStorm')+' (10)';if(kmh<118)return t('beaufortViolent')+' (11)';
+  return t('beaufortHurricane')+' (12)';
 }
 function windDir16(deg){const dirs=['N','NNE','NE','ENE','L','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];return dirs[Math.round(deg/22.5)%16];}
 
@@ -1329,10 +1443,10 @@ function checkAlerts(current,daily){
   const temp=current?.temperature_2m;
 
   // Priority: Storm > Heavy Rain > Strong Wind > Heat
-  if(wCode>=95)return{type:'storm',icon:'⛈️',text:'ALERTA DE TEMPESTADE · EVITE ATIVIDADES AO AR LIVRE',cls:'alert-storm'};
-  if(precip>=80)return{type:'rain',icon:'🌧️',text:`ALTA PROBABILIDADE DE CHUVA (${precip}%) · LEVE GUARDA-CHUVA`,cls:'alert-rain'};
-  if(gust>=60||wind>=50)return{type:'wind',icon:'💨',text:`VENTOS FORTES (${Math.round(gust||wind)} KM/H) · CUIDADO EM AREAS ABERTAS`,cls:'alert-wind'};
-  if(temp>=38)return{type:'heat',icon:'🌡️',text:`CALOR EXTREMO (${Math.round(temp)}°C) · MANTENHA-SE HIDRATADO`,cls:'alert-heat'};
+  if(wCode>=95)return{type:'storm',icon:'⛈️',text:t('alertStorm'),cls:'alert-storm'};
+  if(precip>=80)return{type:'rain',icon:'🌧️',text:`${t('alertRain')} (${precip}%)`,cls:'alert-rain'};
+  if(gust>=60||wind>=50)return{type:'wind',icon:'💨',text:`${t('alertWind')} (${Math.round(gust||wind)} KM/H)`,cls:'alert-wind'};
+  if(temp>=38)return{type:'heat',icon:'🌡️',text:`${t('alertHeat')} (${Math.round(temp)}°C)`,cls:'alert-heat'};
   return null;
 }
 function showAlert(alert){
@@ -1506,14 +1620,14 @@ function getMoonPhase(date=new Date()){
 }
 
 function getMoonInfo(phase){
-  if(phase<0.03||phase>0.97)return{icon:'🌑',name:'LUA NOVA',tideStr:'MARES VIVAS'};
-  if(phase<0.22)return{icon:'🌒',name:'CRESCENTE',tideStr:'MARES MEDIAS'};
-  if(phase<0.28)return{icon:'🌓',name:'QUARTO CRESC.',tideStr:'MARES MORTAS'};
-  if(phase<0.47)return{icon:'🌔',name:'GIBOSA CRESC.',tideStr:'MARES MEDIAS'};
-  if(phase<0.53)return{icon:'🌕',name:'LUA CHEIA',tideStr:'MARES VIVAS'};
-  if(phase<0.72)return{icon:'🌖',name:'GIBOSA MING.',tideStr:'MARES MEDIAS'};
-  if(phase<0.78)return{icon:'🌗',name:'QUARTO MING.',tideStr:'MARES MORTAS'};
-  return{icon:'🌘',name:'MINGUANTE',tideStr:'MARES MEDIAS'};
+  if(phase<0.03||phase>0.97)return{icon:'🌑',name:t('newMoon'),tideStr:t('springTides')};
+  if(phase<0.22)return{icon:'🌒',name:t('waxingCres'),tideStr:t('mediumTides')};
+  if(phase<0.28)return{icon:'🌓',name:t('firstQuarter'),tideStr:t('neapTides')};
+  if(phase<0.47)return{icon:'🌔',name:t('waxingGib'),tideStr:t('mediumTides')};
+  if(phase<0.53)return{icon:'🌕',name:t('fullMoon'),tideStr:t('springTides')};
+  if(phase<0.72)return{icon:'🌖',name:t('waningGib'),tideStr:t('mediumTides')};
+  if(phase<0.78)return{icon:'🌗',name:t('lastQuarter'),tideStr:t('neapTides')};
+  return{icon:'🌘',name:t('waningCres'),tideStr:t('mediumTides')};
 }
 
 function getTideEvents(date=new Date()){
@@ -1535,10 +1649,10 @@ function getTideEvents(date=new Date()){
   const lowTide2=(moonTransit+tideCycle*1.5)%1440;
 
   [
-    {m:highTide1,type:'ALTA',icon:'⬆️'},
-    {m:lowTide1,type:'BAIXA',icon:'⬇️'},
-    {m:highTide2,type:'ALTA',icon:'⬆️'},
-    {m:lowTide2,type:'BAIXA',icon:'⬇️'}
+    {m:highTide1,typeKey:'tideHigh',icon:'⬆️'},
+    {m:lowTide1,typeKey:'tideLow',icon:'⬇️'},
+    {m:highTide2,typeKey:'tideHigh',icon:'⬆️'},
+    {m:lowTide2,typeKey:'tideLow',icon:'⬇️'}
   ].sort((a,b)=>a.m-b.m).forEach(e=>{
     const h=Math.floor(e.m/60);
     const m=Math.floor(e.m%60);
@@ -1557,16 +1671,16 @@ function getCurrentTideStatus(events){
     const evtMins=h*60+m;
     if(evtMins>nowMins){
       const prev=events[(i-1+4)%4];
-      const isRising=events[i].type==='ALTA';
+      const isRising=events[i].typeKey==='tideHigh';
       return{
-        status:isRising?'SUBINDO':'DESCENDO',
+        statusKey:isRising?'tideRising':'tideFalling',
         icon:isRising?'📈':'📉',
         next:events[i],
         nextIdx:i
       };
     }
   }
-  return{status:'SUBINDO',icon:'📈',next:events[0],nextIdx:0};
+  return{statusKey:'tideRising',icon:'📈',next:events[0],nextIdx:0};
 }
 
 function buildTides(){
@@ -1592,8 +1706,8 @@ function buildTides(){
     <div class="tide-display">
       <div class="tide-icon">${status.icon}</div>
       <div class="tide-data">
-        <div class="tide-status">MARE ${status.status}</div>
-        <div class="tide-time">PROXIMA ${status.next.type}: ${status.next.time}</div>
+        <div class="tide-status">${t(status.statusKey)}</div>
+        <div class="tide-time">${t('nextTide')}: ${t(status.next.typeKey)} ${status.next.time}</div>
       </div>
     </div>
     <div class="tide-curve">
@@ -1613,7 +1727,7 @@ function buildTides(){
       ${events.map((e,i)=>`
         <div class="tide-event${i===status.nextIdx?' next':''}">
           <span class="tide-event-icon">${e.icon}</span>
-          <span class="tide-event-type">${e.type}</span>
+          <span class="tide-event-type">${t(e.typeKey)}</span>
           <span class="tide-event-time">${e.time}</span>
         </div>
       `).join('')}
@@ -1622,7 +1736,7 @@ function buildTides(){
       <span class="tide-moon-icon">${moonInfo.icon}</span>
       <span class="tide-moon-info">${moonInfo.name} · ${moonInfo.tideStr}</span>
     </div>
-    <div class="tide-approx">* CALCULO APROXIMADO BASEADO EM CICLO LUNAR</div>
+    <div class="tide-approx">* ${t('lunarApprox')}</div>
   `;
 
   container.innerHTML=html;
@@ -1927,6 +2041,94 @@ function refreshAll(){
   });
   refreshMarkers();
 }
+
+// ============ LANGUAGE TOGGLE ============
+function setLang(lang){
+  curLang=lang;
+  document.documentElement.lang=lang==='pt'?'pt-BR':'en';
+
+  // Update toggle buttons
+  document.getElementById('langPT').classList.toggle('on',lang==='pt');
+  document.getElementById('langEN').classList.toggle('on',lang==='en');
+
+  // Update theme buttons
+  document.querySelectorAll('.theme-pill').forEach(btn=>{
+    const theme=btn.dataset.t;
+    if(theme==='rain')btn.innerHTML='&#9729; '+t('rain');
+    if(theme==='sun')btn.innerHTML='&#9728; '+t('sun');
+    if(theme==='cloudy')btn.innerHTML='&#9730; '+t('cloudy');
+  });
+
+  // Update night indicator
+  document.getElementById('niText').textContent=isNight?t('night'):t('day');
+
+  // Update sport buttons
+  document.querySelectorAll('.sport-btn').forEach(btn=>{
+    const sport=btn.dataset.sport;
+    const icons={surf:'&#127940;',kite:'&#129667;',wind:'&#127940;',para:'&#129666;',sail:'&#9973;',fish:'&#127907;'};
+    const keys={surf:'surf',kite:'kite',wind:'windsurf',para:'paraglide',sail:'sail',fish:'fish'};
+    btn.innerHTML=`<span class="sicon">${icons[sport]}</span>${t(keys[sport])}`;
+  });
+
+  // Update labels
+  const labels={
+    currentCondition:'&#127919; ',wind:'&#127744; ',kiteRating:'&#129667; ',
+    forecast12h:'&#128337; ',waves:'&#127754; ',tides:'&#127754; ',
+    data:'&#128202; ',wind5days:'&#128168; ',legend:'&#127777;&#65039; '
+  };
+  document.querySelectorAll('.clabel').forEach(el=>{
+    const text=el.textContent.trim();
+    if(text.includes('CONDICAO')||text.includes('CONDITION'))el.innerHTML=labels.currentCondition+t('currentCondition');
+    else if(text.includes('VENTO')&&!text.includes('DIAS')&&!text.includes('DAY'))el.innerHTML=labels.wind+t('wind');
+    else if(text.includes('RATING'))el.innerHTML=labels.kiteRating+t('kiteRating');
+    else if(text.includes('12H')||text.includes('PREVISAO'))el.innerHTML=labels.forecast12h+t('forecast12h');
+    else if(text.includes('ONDAS')||text.includes('WAVES'))el.innerHTML=labels.waves+t('waves');
+    else if(text.includes('MARES')||text.includes('TIDES'))el.innerHTML=labels.tides+t('tides');
+    else if(text.includes('DADOS')||text.includes('DATA'))el.innerHTML=labels.data+t('data');
+    else if(text.includes('5 DIAS')||text.includes('5 DAY'))el.innerHTML=labels.wind5days+t('wind5days');
+    else if(text.includes('LEGENDA')||text.includes('LEGEND'))el.innerHTML=labels.legend+t('legend');
+  });
+
+  // Update search placeholder
+  document.getElementById('searchInput').placeholder=t('searchPlaceholder');
+
+  // Update share toast
+  document.getElementById('shareToast').textContent=t('linkCopied');
+
+  // Update legend
+  const legendEl=document.querySelector('.legend');
+  if(legendEl){
+    legendEl.innerHTML=`
+      <div class="leg-item"><span class="leg-dot" style="background:#4CAF50"></span>${t('cold')} &lt;20°</div>
+      <div class="leg-item"><span class="leg-dot" style="background:#FF9800"></span>${t('warm')} 20-30°</div>
+      <div class="leg-item"><span class="leg-dot" style="background:#f44336"></span>${t('hot')} &gt;30°</div>
+    `;
+  }
+
+  // Update kite labels
+  document.getElementById('kiteLow').textContent=t('kiteLow');
+  document.getElementById('kiteHigh').textContent=t('kiteHigh');
+
+  // Re-render dynamic components if data loaded
+  if(uLat&&uLon){
+    buildTides();
+    // Refresh condition badge
+    const cacheKey=`${uLat.toFixed(1)},${uLon.toFixed(1)}`;
+    if(cache[cacheKey]){
+      const c=cache[cacheKey].current;
+      const cond=surfCondition(c.weather_code,c.wind_speed_10m);
+      document.getElementById('condBadge').innerHTML=`${cond.label} <span class="stars">${'★'.repeat(cond.stars)}${'☆'.repeat(5-cond.stars)}</span>`;
+      document.getElementById('condBadge').className='cond-badge '+cond.cls;
+      // Update beaufort
+      const bfEl=document.getElementById('wrBeaufort');
+      if(bfEl)bfEl.textContent=beaufort(c.wind_speed_10m);
+    }
+  }
+}
+
+// Language toggle events
+document.getElementById('langPT').onclick=()=>setLang('pt');
+document.getElementById('langEN').onclick=()=>setLang('en');
 
 // ============ INIT ============
 async function init(){
