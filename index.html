@@ -14,7 +14,7 @@
 
 <style>
 /* ===================== RESET & ROOT ===================== */
-:root{--tr:1.2s;--sport-color:#0097a7;}
+:root{--tr:1.8s;--sport-color:#0097a7;}
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;overflow:hidden;}
 body{font-family:'Syne',sans-serif;transition:background var(--tr);}
@@ -54,15 +54,9 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 /* ===================== PARTICLES CANVAS ===================== */
 #fx{position:fixed;inset:0;pointer-events:none;z-index:1;}
 
-/* ===================== THEME PROGRESS BAR ===================== */
+/* ===================== THEME INDICATOR BAR ===================== */
 #tbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:300;overflow:hidden;}
 #tbar-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:background var(--tr);}
-#tbar-prog{height:100%;background:rgba(255,255,255,.55);width:0%;animation:tprog 8s linear infinite;}
-@keyframes tprog{from{width:0%}to{width:100%}}
-
-/* ===================== FLASH OVERLAY ===================== */
-#flash{position:fixed;inset:0;pointer-events:none;z-index:998;opacity:0;background:var(--bg1);transition:opacity .35s;}
-.flashing{opacity:.32!important;}
 
 /* ===================== LAYOUT SHELL ===================== */
 .shell{
@@ -398,11 +392,8 @@ header{
   <div class="load-bar"><div class="load-prog"></div></div>
 </div>
 
-<!-- THEME BAR -->
-<div id="tbar"><div id="tbar-fill"><div id="tbar-prog"></div></div></div>
-
-<!-- FLASH -->
-<div id="flash"></div>
+<!-- THEME INDICATOR BAR -->
+<div id="tbar"><div id="tbar-fill"></div></div>
 
 <!-- PARTICLES -->
 <canvas id="fx"></canvas>
@@ -596,8 +587,7 @@ const SPOTS=[
 ];
 
 // ============ STATE ============
-let cache={},celsius=true,knots=false,curTheme='rain',curSport='surf',themeIdx=0,autoMode=true,autoTimer;
-const THEMES=['rain','sun','cloudy'];
+let cache={},celsius=true,knots=false,curTheme='rain',curSport='surf',autoMode=true;
 let uLat=null,uLon=null,map=null,userMarker=null,stateMarkers=[],spotMarkers=[];
 
 // ============ PARTICLES ============
@@ -633,26 +623,43 @@ function loop(){
 }
 ipts();loop();
 
-// ============ THEME ============
+// ============ THEME (Auto by Weather + Morphing) ============
+let autoThemeTimer=null;
+
+// Map WMO weather code to theme
+function wmoToTheme(wCode){
+  if(wCode<=2)return'sun';      // Clear, mainly clear, partly cloudy
+  if(wCode<=49)return'cloudy';  // Overcast, fog, drizzle codes 3-49
+  return'rain';                  // Rain, snow, thunderstorm 50+
+}
+
 function setTheme(t,manual=false){
+  if(curTheme===t&&!manual)return; // Skip if same theme (smooth experience)
   curTheme=t;
-  if(manual){autoMode=false;clearInterval(autoTimer);}
-  document.getElementById('flash').classList.add('flashing');
-  setTimeout(()=>document.getElementById('flash').classList.remove('flashing'),380);
+  if(manual){
+    autoMode=false;
+    clearTimeout(autoThemeTimer);
+    // Return to auto mode after 30 seconds
+    autoThemeTimer=setTimeout(()=>{autoMode=true;},30000);
+  }
+  // Smooth morphing transition (no flash, CSS handles it)
   document.body.className='theme-'+t+' mode-'+curSport;
   document.querySelectorAll('.theme-pill').forEach(p=>p.classList.toggle('on',p.dataset.t===t));
-  const pr=document.getElementById('tbar-prog');pr.style.animation='none';pr.offsetHeight;pr.style.animation='';
-  ipts();
+  // Gradually transition particles
+  setTimeout(()=>ipts(),400);
   if(map)refreshMarkers();
 }
-function startAuto(){
-  clearInterval(autoTimer);
-  autoTimer=setInterval(()=>{if(!autoMode)return;themeIdx=(themeIdx+1)%THEMES.length;setTheme(THEMES[themeIdx]);},8000);
+
+// Set theme based on current weather code
+function setThemeByWeather(wCode){
+  if(!autoMode)return; // Don't change if user manually selected
+  const theme=wmoToTheme(wCode);
+  setTheme(theme);
 }
+
 document.querySelectorAll('.theme-pill').forEach(b=>{
-  b.addEventListener('click',()=>{autoMode=false;clearInterval(autoTimer);setTheme(b.dataset.t,true);setTimeout(()=>{autoMode=true;startAuto();},24000);});
+  b.addEventListener('click',()=>setTheme(b.dataset.t,true));
 });
-startAuto();
 
 // ============ SPORT MODE ============
 document.querySelectorAll('.sport-btn').forEach(b=>{
@@ -789,6 +796,8 @@ async function showMapPopup(lat,lon,name){
 // ============ LOAD MAIN ============
 async function loadMain(lat,lon,city){
   const d=await fw(lat,lon);if(!d)return;const c=d.current;
+  // Auto-select theme based on current weather
+  setThemeByWeather(c.weather_code);
   document.getElementById('mcity').textContent=city;
   document.getElementById('mtemp').innerHTML=toN(c.temperature_2m)+'<sup>'+(celsius?'°C':'°F')+'</sup>';
   document.getElementById('mdesc').textContent=wmoDesc(c.weather_code);
