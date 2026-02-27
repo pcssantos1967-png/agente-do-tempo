@@ -94,6 +94,44 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 .night-indicator.is-night .ni-icon{transform:rotate(360deg);}
 .night-indicator .ni-text{opacity:.7;}
 
+/* ===================== WEATHER ALERTS ===================== */
+.alert-banner{
+  position:fixed;top:0;left:0;right:0;z-index:8000;
+  transform:translateY(-100%);transition:transform .4s cubic-bezier(0.4,0,0.2,1);
+  pointer-events:none;
+}
+.alert-banner.show{transform:translateY(0);pointer-events:auto;}
+.alert-content{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  padding:10px 20px;
+  font-family:'Orbitron';font-size:.6rem;letter-spacing:2px;
+  text-transform:uppercase;
+}
+.alert-rain{background:linear-gradient(90deg,#1565c0,#0d47a1);color:#fff;box-shadow:0 4px 20px rgba(21,101,192,0.5);}
+.alert-storm{background:linear-gradient(90deg,#d32f2f,#b71c1c);color:#fff;box-shadow:0 4px 20px rgba(211,47,47,0.5);animation:alertPulse 2s infinite;}
+.alert-wind{background:linear-gradient(90deg,#f57c00,#e65100);color:#fff;box-shadow:0 4px 20px rgba(245,124,0,0.5);}
+.alert-heat{background:linear-gradient(90deg,#ff5722,#e64a19);color:#fff;box-shadow:0 4px 20px rgba(255,87,34,0.5);}
+.alert-icon{font-size:1.2rem;animation:alertBounce 1s infinite;}
+.alert-text{flex:1;}
+.alert-close{
+  background:rgba(255,255,255,0.2);border:none;color:#fff;
+  width:24px;height:24px;border-radius:50%;cursor:pointer;
+  font-size:.8rem;transition:all .2s;
+}
+.alert-close:hover{background:rgba(255,255,255,0.4);transform:scale(1.1);}
+@keyframes alertPulse{0%,100%{opacity:1;}50%{opacity:0.85;}}
+@keyframes alertBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+
+.alert-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:10px;
+  font-family:'Orbitron';font-size:.4rem;letter-spacing:1px;
+  animation:alertPulse 2s infinite;
+}
+.alert-badge-rain{background:#1565c0;color:#fff;}
+.alert-badge-storm{background:#d32f2f;color:#fff;}
+.alert-badge-wind{background:#f57c00;color:#fff;}
+
 /* ===================== SPORT MODES ===================== */
 .mode-surf{--sport-color:#0097a7;}
 .mode-kite{--sport-color:#7c4dff;}
@@ -507,6 +545,15 @@ header{
   <div class="load-logo">MetBrasil</div>
   <div class="load-sub">Inteligencia Climatica</div>
   <div class="load-bar"><div class="load-prog"></div></div>
+</div>
+
+<!-- WEATHER ALERT BANNER -->
+<div class="alert-banner" id="alertBanner">
+  <div class="alert-content" id="alertContent">
+    <span class="alert-icon" id="alertIcon">⚠️</span>
+    <span class="alert-text" id="alertText">ALERTA</span>
+    <button class="alert-close" id="alertClose">&times;</button>
+  </div>
 </div>
 
 <!-- CINEMATIC WIPE -->
@@ -974,6 +1021,41 @@ function beaufort(kmh){
 }
 function windDir16(deg){const dirs=['N','NNE','NE','ENE','L','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];return dirs[Math.round(deg/22.5)%16];}
 
+// ============ WEATHER ALERTS ============
+let alertDismissed=false;
+function checkAlerts(current,daily){
+  if(alertDismissed)return null;
+  const precip=daily?.precipitation_probability_max?.[0];
+  const wCode=current?.weather_code;
+  const wind=current?.wind_speed_10m;
+  const gust=current?.wind_gusts_10m;
+  const temp=current?.temperature_2m;
+
+  // Priority: Storm > Heavy Rain > Strong Wind > Heat
+  if(wCode>=95)return{type:'storm',icon:'⛈️',text:'ALERTA DE TEMPESTADE · EVITE ATIVIDADES AO AR LIVRE',cls:'alert-storm'};
+  if(precip>=80)return{type:'rain',icon:'🌧️',text:`ALTA PROBABILIDADE DE CHUVA (${precip}%) · LEVE GUARDA-CHUVA`,cls:'alert-rain'};
+  if(gust>=60||wind>=50)return{type:'wind',icon:'💨',text:`VENTOS FORTES (${Math.round(gust||wind)} KM/H) · CUIDADO EM AREAS ABERTAS`,cls:'alert-wind'};
+  if(temp>=38)return{type:'heat',icon:'🌡️',text:`CALOR EXTREMO (${Math.round(temp)}°C) · MANTENHA-SE HIDRATADO`,cls:'alert-heat'};
+  return null;
+}
+function showAlert(alert){
+  if(!alert){hideAlert();return;}
+  const banner=document.getElementById('alertBanner');
+  const content=document.getElementById('alertContent');
+  document.getElementById('alertIcon').textContent=alert.icon;
+  document.getElementById('alertText').textContent=alert.text;
+  content.className='alert-content '+alert.cls;
+  banner.classList.add('show');
+}
+function hideAlert(){
+  document.getElementById('alertBanner').classList.remove('show');
+}
+document.getElementById('alertClose').onclick=()=>{
+  alertDismissed=true;
+  hideAlert();
+  setTimeout(()=>{alertDismissed=false;},300000); // Reset after 5 min
+};
+
 // ============ WAVE HELPERS ============
 function waveQuality(height){
   if(height===null||height===undefined)return{label:'SEM DADOS',cls:'wq-flat'};
@@ -1108,6 +1190,9 @@ async function loadMain(lat,lon,city){
   badge.innerHTML=cond.label+' <span class="stars">'+'&#9733;'.repeat(cond.stars)+'&#9734;'.repeat(5-cond.stars)+'</span>';
   buildHours(d.hourly);
   buildWindTable(d.daily);
+  // Check for weather alerts
+  const alert=checkAlerts(c,d.daily);
+  showAlert(alert);
   // Load marine/wave data
   fwMarine(lat,lon).then(marine=>buildWaves(marine));
   if(userMarker)map.removeLayer(userMarker);
