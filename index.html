@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://ipapi.co;">
 <title>MetBrasil - Inteligencia Climatica para Esportes</title>
 
 <!-- PWA -->
@@ -15,8 +16,8 @@
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23020810' width='180' height='180' rx='20'/><text x='90' y='75' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='65' font-weight='bold'>M</text><text x='90' y='135' text-anchor='middle' fill='%234fc3f7' font-family='sans-serif' font-size='28'>BRASIL</text></svg>">
 
 <!-- Leaflet Map -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <!-- Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
@@ -945,6 +946,32 @@ header{
 
 <!-- JAVASCRIPT -->
 <script>
+// ============ SECURITY UTILITIES ============
+// HTML entity encoder to prevent XSS
+function escapeHtml(str){
+  if(str===null||str===undefined)return'';
+  const s=String(str);
+  const map={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};
+  return s.replace(/[&<>"']/g,c=>map[c]);
+}
+// Validate that a value is a safe string (alphanumeric, spaces, basic punctuation)
+function sanitizeLocationName(name){
+  if(typeof name!=='string')return'';
+  // Allow letters (including accented), numbers, spaces, commas, periods, hyphens
+  return name.replace(/[^\p{L}\p{N}\s,.\-]/gu,'').substring(0,100);
+}
+// Validate coordinate is a valid number within range
+function validateCoord(val,min,max){
+  const num=parseFloat(val);
+  if(isNaN(num)||num<min||num>max)return null;
+  return num;
+}
+// Validate spot type against allowed values
+function validateSpotType(type){
+  const allowed=['surf','kite','wind','sail','fish','para','state'];
+  return allowed.includes(type)?type:'surf';
+}
+
 // ============ DATA ============
 const STATES=[
   {code:'AC',name:'Acre',lat:-9.97,lon:-67.81},{code:'AL',name:'Alagoas',lat:-9.67,lon:-35.74},
@@ -1508,10 +1535,16 @@ spotModal.onclick=(e)=>{if(e.target===spotModal)spotModal.classList.remove('show
 document.addEventListener('keydown',(e)=>{if(e.key==='Escape')spotModal.classList.remove('show');});
 
 async function openSpotModal(name,lat,lon,type){
-  currentSpot={name,lat,lon,type};
+  // Sanitize inputs for security
+  const safeName=sanitizeLocationName(name)||'LOCATION';
+  const safeLat=validateCoord(lat,-90,90);
+  const safeLon=validateCoord(lon,-180,180);
+  const safeType=validateSpotType(type);
+  if(safeLat===null||safeLon===null)return;
+  currentSpot={name:safeName,lat:safeLat,lon:safeLon,type:safeType};
   const icons={surf:'🏄',kite:'🪁',wind:'🏄',sail:'⛵',fish:'🎣',state:'📍'};
-  document.getElementById('smtIcon').textContent=icons[type]||'🏖️';
-  document.getElementById('smtName').textContent=name.toUpperCase();
+  document.getElementById('smtIcon').textContent=icons[safeType]||'🏖️';
+  document.getElementById('smtName').textContent=safeName.toUpperCase();
   spotModal.classList.add('show');
 
   // Show loading state
@@ -1577,11 +1610,12 @@ function showToast(msg){
 }
 function generateShareUrl(){
   const base=window.location.origin+window.location.pathname;
+  // Use sanitized values from currentSpot (already sanitized in openSpotModal)
   const params=new URLSearchParams({
-    spot:currentSpot.name,
+    spot:encodeURIComponent(currentSpot.name||''),
     lat:currentSpot.lat.toFixed(4),
     lon:currentSpot.lon.toFixed(4),
-    type:currentSpot.type||'surf'
+    type:validateSpotType(currentSpot.type)
   });
   return base+'?'+params.toString();
 }
@@ -1614,15 +1648,17 @@ function copyToClipboard(text){
 }
 document.getElementById('shareBtn').onclick=shareSpot;
 
-// Parse URL parameters on load
+// Parse URL parameters on load with security validation
 function parseUrlParams(){
   const params=new URLSearchParams(window.location.search);
   if(params.has('spot')&&params.has('lat')&&params.has('lon')){
-    const name=params.get('spot');
-    const lat=parseFloat(params.get('lat'));
-    const lon=parseFloat(params.get('lon'));
-    const type=params.get('type')||'surf';
-    if(!isNaN(lat)&&!isNaN(lon)){
+    // Sanitize and validate all inputs
+    const name=sanitizeLocationName(params.get('spot'));
+    const lat=validateCoord(params.get('lat'),-90,90);
+    const lon=validateCoord(params.get('lon'),-180,180);
+    const type=validateSpotType(params.get('type')||'surf');
+    // Only return if all values are valid
+    if(name&&name.length>0&&lat!==null&&lon!==null){
       return{name,lat,lon,type};
     }
   }
@@ -1780,12 +1816,18 @@ function buildTides(){
 // ============ FETCH MARINE ============
 let marineCache={};
 async function fwMarine(lat,lon){
-  const k=`m${lat.toFixed(1)},${lon.toFixed(1)}`;
+  // Validate coordinates
+  const safeLat=validateCoord(lat,-90,90);
+  const safeLon=validateCoord(lon,-180,180);
+  if(safeLat===null||safeLon===null)return null;
+  const k=`m${safeLat.toFixed(1)},${safeLon.toFixed(1)}`;
   if(marineCache[k])return marineCache[k];
   try{
-    const r=await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&daily=wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max&timezone=America%2FSao_Paulo&forecast_days=5`);
+    const r=await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${safeLat}&longitude=${safeLon}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&daily=wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max&timezone=America%2FSao_Paulo&forecast_days=5`);
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
     const d=await r.json();
+    // Basic response structure validation
+    if(!d||typeof d!=='object')throw new Error('Invalid response');
     marineCache[k]=d;
     return d;
   }catch(e){console.warn('fwMarine() error:',e);return null;}
@@ -1793,12 +1835,19 @@ async function fwMarine(lat,lon){
 
 // ============ FETCH ============
 async function fw(lat,lon){
-  const k=`${lat.toFixed(1)},${lon.toFixed(1)}`;
+  // Validate coordinates
+  const safeLat=validateCoord(lat,-90,90);
+  const safeLon=validateCoord(lon,-180,180);
+  if(safeLat===null||safeLon===null)return null;
+  const k=`${safeLat.toFixed(1)},${safeLon.toFixed(1)}`;
   if(cache[k])return cache[k];
   try{
-    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,visibility,cloud_cover&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code&timezone=America%2FSao_Paulo&forecast_days=5`);
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${safeLat}&longitude=${safeLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,visibility,cloud_cover&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code&timezone=America%2FSao_Paulo&forecast_days=5`);
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    const d=await r.json();cache[k]=d;return d;
+    const d=await r.json();
+    // Basic response structure validation
+    if(!d||typeof d!=='object'||!d.current)throw new Error('Invalid response structure');
+    cache[k]=d;return d;
   }catch(e){console.warn('fw() error:',e);return null;}
 }
 
@@ -1862,13 +1911,17 @@ function refreshMarkers(){
 
 // ============ POPUPS ============
 function showStatePopup(s,marker){
-  const html=`<div class="pop-content"><div class="pop-title">${s.name.toUpperCase()}</div><div style="display:flex;align-items:baseline;gap:8px;"><div class="pop-temp">${toN(s._t||0)}</div><div style="font-size:.9rem;opacity:.6;">${celsius?'C':'F'}</div><div style="font-size:1.6rem;margin-left:6px;">${wmoIcon(s._c)}</div></div><div class="pop-desc">${wmoDesc(s._c)}</div><div class="pop-meta"><div class="pop-m"><span class="pop-ml">VENTO</span><span class="pop-mv">${toW(s._w||0)}</span></div><div class="pop-m"><span class="pop-ml">RAJADAS</span><span class="pop-mv">${toW(s._gust||0)}</span></div><div class="pop-m"><span class="pop-ml">UMIDADE</span><span class="pop-mv">${s._h||'--'}%</span></div><div class="pop-m"><span class="pop-ml">CHUVA</span><span class="pop-mv">${s._prec!==null?s._prec+'%':'--'}</span></div></div></div>`;
+  // Build popup safely using escaped values
+  const safeName=escapeHtml(s.name).toUpperCase();
+  const html=`<div class="pop-content"><div class="pop-title">${safeName}</div><div style="display:flex;align-items:baseline;gap:8px;"><div class="pop-temp">${toN(s._t||0)}</div><div style="font-size:.9rem;opacity:.6;">${celsius?'C':'F'}</div><div style="font-size:1.6rem;margin-left:6px;">${wmoIcon(s._c)}</div></div><div class="pop-desc">${wmoDesc(s._c)}</div><div class="pop-meta"><div class="pop-m"><span class="pop-ml">VENTO</span><span class="pop-mv">${toW(s._w||0)}</span></div><div class="pop-m"><span class="pop-ml">RAJADAS</span><span class="pop-mv">${toW(s._gust||0)}</span></div><div class="pop-m"><span class="pop-ml">UMIDADE</span><span class="pop-mv">${s._h||'--'}%</span></div><div class="pop-m"><span class="pop-ml">CHUVA</span><span class="pop-mv">${s._prec!==null?s._prec+'%':'--'}</span></div></div></div>`;
   marker.bindPopup(html,{maxWidth:240}).openPopup();
 }
 async function showMapPopup(lat,lon,name){
   const d=await fw(lat,lon);if(!d)return;const c=d.current;
   const tmpMk=L.marker([lat,lon],{icon:makeIcon(c.temperature_2m,wmoIcon(c.weather_code),true)}).addTo(map);
-  const html=`<div class="pop-content"><div class="pop-title">${name?name.toUpperCase():'\uD83D\uDCCD '+lat.toFixed(2)+', '+lon.toFixed(2)}</div><div style="display:flex;align-items:baseline;gap:8px;"><div class="pop-temp">${toN(c.temperature_2m)}</div><div style="font-size:.9rem;opacity:.6;">${celsius?'C':'F'}</div><div style="font-size:1.6rem;margin-left:6px;">${wmoIcon(c.weather_code)}</div></div><div class="pop-desc">${wmoDesc(c.weather_code)}</div><div class="pop-meta"><div class="pop-m"><span class="pop-ml">VENTO</span><span class="pop-mv">${toW(c.wind_speed_10m)}</span></div><div class="pop-m"><span class="pop-ml">RAJADAS</span><span class="pop-mv">${toW(c.wind_gusts_10m)}</span></div><div class="pop-m"><span class="pop-ml">UMIDADE</span><span class="pop-mv">${c.relative_humidity_2m}%</span></div><div class="pop-m"><span class="pop-ml">PRESSAO</span><span class="pop-mv">${Math.round(c.surface_pressure)} hPa</span></div></div></div>`;
+  // Build popup safely using escaped values
+  const safeName=name?escapeHtml(name).toUpperCase():'\uD83D\uDCCD '+lat.toFixed(2)+', '+lon.toFixed(2);
+  const html=`<div class="pop-content"><div class="pop-title">${safeName}</div><div style="display:flex;align-items:baseline;gap:8px;"><div class="pop-temp">${toN(c.temperature_2m)}</div><div style="font-size:.9rem;opacity:.6;">${celsius?'C':'F'}</div><div style="font-size:1.6rem;margin-left:6px;">${wmoIcon(c.weather_code)}</div></div><div class="pop-desc">${wmoDesc(c.weather_code)}</div><div class="pop-meta"><div class="pop-m"><span class="pop-ml">VENTO</span><span class="pop-mv">${toW(c.wind_speed_10m)}</span></div><div class="pop-m"><span class="pop-ml">RAJADAS</span><span class="pop-mv">${toW(c.wind_gusts_10m)}</span></div><div class="pop-m"><span class="pop-ml">UMIDADE</span><span class="pop-mv">${c.relative_humidity_2m}%</span></div><div class="pop-m"><span class="pop-ml">PRESSAO</span><span class="pop-mv">${Math.round(c.surface_pressure)} hPa</span></div></div></div>`;
   tmpMk.bindPopup(html,{maxWidth:240}).openPopup();
   tmpMk.on('popupclose',()=>map.removeLayer(tmpMk));
 }
@@ -1877,7 +1930,9 @@ async function showMapPopup(lat,lon,name){
 async function loadMain(lat,lon,city){
   const d=await fw(lat,lon);if(!d||!d.current)return;const c=d.current;
   setThemeByWeather(c.weather_code);
-  document.getElementById('mcity').textContent=city.toUpperCase();
+  // Sanitize city name before display
+  const safeCity=sanitizeLocationName(city)||'LOCATION';
+  document.getElementById('mcity').textContent=safeCity.toUpperCase();
   document.getElementById('mtemp').innerHTML=toN(c.temperature_2m)+'<sup>'+(celsius?'C':'F')+'</sup>';
   document.getElementById('mdesc').textContent=wmoDesc(c.weather_code);
   document.getElementById('micon').textContent=wmoIcon(c.weather_code);
@@ -2003,8 +2058,24 @@ function buildStateGrid(res){
   const g=document.getElementById('stgrid');g.innerHTML='';
   res.forEach(({s})=>{
     const btn=document.createElement('button');
-    btn.className='stbtn';btn.id='sb-'+s.code;
-    btn.innerHTML=wmoIcon(s._c)+'<br><b>'+s.code+'</b><br>'+(s._t!==null?toN(s._t):'?');
+    btn.className='stbtn';
+    // Sanitize state code for use as ID
+    const safeCode=escapeHtml(s.code);
+    btn.id='sb-'+safeCode;
+    // Build button content safely
+    const iconSpan=document.createElement('span');
+    iconSpan.textContent=wmoIcon(s._c);
+    const br1=document.createElement('br');
+    const codeB=document.createElement('b');
+    codeB.textContent=safeCode;
+    const br2=document.createElement('br');
+    const tempSpan=document.createElement('span');
+    tempSpan.textContent=s._t!==null?toN(s._t):'?';
+    btn.appendChild(iconSpan);
+    btn.appendChild(br1);
+    btn.appendChild(codeB);
+    btn.appendChild(br2);
+    btn.appendChild(tempSpan);
     btn.title=s.name;
     btn.onclick=()=>{selState(s);const m=stateMarkers.find(x=>x.s.code===s.code);if(m&&map){map.setView([s.lat,s.lon],7,{animate:true});showStatePopup(s,m.marker);}};
     g.appendChild(btn);
@@ -2012,7 +2083,9 @@ function buildStateGrid(res){
 }
 function selState(s){
   document.querySelectorAll('.stbtn').forEach(b=>b.classList.remove('on'));
-  const btn=document.getElementById('sb-'+s.code);if(btn)btn.classList.add('on');
+  // Sanitize state code for ID lookup
+  const safeCode=escapeHtml(s.code);
+  const btn=document.getElementById('sb-'+safeCode);if(btn)btn.classList.add('on');
   loadMain(s.lat,s.lon,s.name);
 }
 
@@ -2023,7 +2096,15 @@ function buildSpotsGrid(){
   SPOTS.forEach(sp=>{
     const btn=document.createElement('button');
     btn.className='spot-btn';
-    btn.innerHTML=`<span class="spot-icon">${icons[sp.type]||'\uD83C\uDFC4'}</span><span class="spot-name">${sp.name.toUpperCase()}</span>`;
+    // Build button content safely using DOM methods
+    const iconSpan=document.createElement('span');
+    iconSpan.className='spot-icon';
+    iconSpan.textContent=icons[sp.type]||'\uD83C\uDFC4';
+    const nameSpan=document.createElement('span');
+    nameSpan.className='spot-name';
+    nameSpan.textContent=sp.name.toUpperCase();
+    btn.appendChild(iconSpan);
+    btn.appendChild(nameSpan);
     btn.onclick=()=>{map.setView([sp.lat,sp.lon],10,{animate:true});openSpotModal(sp.name,sp.lat,sp.lon,sp.type);};
     g.appendChild(btn);
   });
@@ -2048,17 +2129,25 @@ sinput.addEventListener('input',()=>{
   if(q.length<2){sresults.classList.remove('show');return;}
   const matches=SEARCH_ITEMS.filter(c=>c.name.toLowerCase().includes(q)).slice(0,8);
   if(!matches.length){sresults.classList.remove('show');return;}
-  sresults.innerHTML=matches.map(c=>`<div class="search-item" data-lat="${c.lat}" data-lon="${c.lon}" data-name="${c.name}">${c.name.toUpperCase()}</div>`).join('');
-  sresults.classList.add('show');
-  sresults.querySelectorAll('.search-item').forEach(el=>{
-    el.addEventListener('click',async()=>{
-      const lt=parseFloat(el.dataset.lat),ln=parseFloat(el.dataset.lon),nm=el.dataset.name;
+  // Build search results safely using DOM methods to prevent XSS
+  sresults.innerHTML='';
+  matches.forEach(c=>{
+    const div=document.createElement('div');
+    div.className='search-item';
+    div.dataset.lat=c.lat;
+    div.dataset.lon=c.lon;
+    div.dataset.name=c.name;
+    div.textContent=c.name.toUpperCase();
+    div.addEventListener('click',async()=>{
+      const lt=parseFloat(div.dataset.lat),ln=parseFloat(div.dataset.lon),nm=div.dataset.name;
       sinput.value=nm.toUpperCase();sresults.classList.remove('show');
       map.setView([lt,ln],10,{animate:true});
       await showMapPopup(lt,ln,nm);
       await loadMain(lt,ln,nm);
     });
+    sresults.appendChild(div);
   });
+  sresults.classList.add('show');
 });
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))sresults.classList.remove('show');});
 
@@ -2077,8 +2166,25 @@ function refreshAll(){
     }
   }
   STATES.forEach(s=>{
-    const btn=document.getElementById('sb-'+s.code);
-    if(btn&&s._t!==null)btn.innerHTML=wmoIcon(s._c)+'<br><b>'+s.code+'</b><br>'+toN(s._t);
+    const safeCode=escapeHtml(s.code);
+    const btn=document.getElementById('sb-'+safeCode);
+    if(btn&&s._t!==null){
+      // Rebuild button content safely using DOM methods
+      btn.innerHTML='';
+      const iconSpan=document.createElement('span');
+      iconSpan.textContent=wmoIcon(s._c);
+      const br1=document.createElement('br');
+      const codeB=document.createElement('b');
+      codeB.textContent=safeCode;
+      const br2=document.createElement('br');
+      const tempSpan=document.createElement('span');
+      tempSpan.textContent=toN(s._t);
+      btn.appendChild(iconSpan);
+      btn.appendChild(br1);
+      btn.appendChild(codeB);
+      btn.appendChild(br2);
+      btn.appendChild(tempSpan);
+    }
   });
   refreshMarkers();
 }
