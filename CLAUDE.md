@@ -83,11 +83,21 @@ hourly:  temperature_2m, wind_speed_10m, wind_direction_10m, weather_code
 timezone: America/Sao_Paulo | forecast_days: 5
 ```
 
-### Cache
+### Cache (localStorage + memória)
 ```js
-let cache = {}
-// chave: `${lat.toFixed(1)},${lon.toFixed(1)}`
-// Não há TTL — cache por sessão apenas
+// Cache em memória + persistido no localStorage
+const CACHE_KEY = 'metbrasil_weather_cache';
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+
+// Chave: `${lat.toFixed(1)},${lon.toFixed(1)}`
+// loadCache() restaura do localStorage no load
+// saveCache() persiste após cada fetch
+```
+
+### Batch API
+```js
+// fwBatch(locations) - busca múltiplas coordenadas em 1 request
+// Usado em placeStateMarkers() para carregar 27 estados de uma vez
 ```
 
 ---
@@ -109,11 +119,14 @@ Ubatuba, capitais principais.
 
 | Função | Responsabilidade |
 |--------|-----------------|
-| `fw(lat, lon)` | Fetch Open-Meteo com cache |
+| `fw(lat, lon)` | Fetch Open-Meteo com cache (single location) |
+| `fwBatch(locations)` | Fetch Open-Meteo batch (múltiplas locations em 1 request) |
+| `loadCache()` | Restaura cache do localStorage |
+| `saveCache()` | Persiste cache no localStorage |
 | `loadMain(lat, lon, city)` | Popula painel esquerdo + wind rose + badge |
-| `placeStateMarkers()` | Carrega 27 estados em paralelo via `Promise.all` |
+| `placeStateMarkers()` | Carrega 27 estados via batch API |
 | `selState(s)` | Atualiza painel direito com estado selecionado |
-| `setTheme(t)` | Troca tema + flash + recria partículas |
+| `setTheme(t)` | Troca tema + flash + recria partículas (desktop only) |
 | `buildWindTable(daily)` | Tabela Windguru-style 5 dias |
 | `buildSwell(daily)` | Strip de ondas 5 dias |
 | `buildHours(hourly, baseHour)` | Strip horária 12h |
@@ -169,10 +182,76 @@ else                 → FRACO     (cond-poor,  1★)
 - **NÃO** substituir CartoDB por outro tile sem teste de tema
 - **NÃO** remover o sistema de 3 temas
 - **NÃO** trocar `Bebas Neue` / `DM Mono` / `Syne`
-- **NÃO** usar `localStorage` (sessão apenas)
 - **NÃO** adicionar dependências npm (projeto zero-build)
 - **NÃO** remover os 27 estados do array `STATES`
 - **NÃO** alterar a assinatura de `fw()` (cache quebra)
+
+---
+
+## ⚡ PERFORMANCE (CRÍTICO - SEMPRE SEGUIR)
+
+> **REGRA DE OURO:** Toda alteração deve manter a performance atual no mobile.
+> Testar no celular antes de fazer deploy.
+
+### Otimizações Implementadas (NÃO remover)
+
+| Otimização | Implementação | Impacto |
+|------------|---------------|---------|
+| **Batch API** | `fwBatch()` - 27 estados em 1 request | -96% requests |
+| **localStorage cache** | TTL 10min, restaura no load | Instant reload |
+| **Partículas desativadas no mobile** | `if(!isMobile)` no JS | -100% CPU animação |
+| **Animações CSS desativadas no mobile** | `@media(max-width:768px)` | -100% CSS animations |
+| **Canvas ocultos no mobile** | `#fx,#windCanvas,#lightning{display:none}` | -GPU overhead |
+| **backdrop-filter removido no mobile** | CSS media query | -GPU blur |
+| **Preconnect hints** | `<link rel="preconnect">` | -latência |
+
+### Regras para Novas Alterações
+
+1. **API Requests:**
+   - NUNCA adicionar requests individuais em loop
+   - SEMPRE usar batch quando possível
+   - SEMPRE cachear respostas
+
+2. **Animações/Transições:**
+   - SEMPRE verificar `isMobile` antes de iniciar animações JS
+   - NOVAS animações CSS devem ter override no media query mobile
+   - NUNCA usar `backdrop-filter` sem fallback mobile
+
+3. **Canvas/WebGL:**
+   - SEMPRE desativar no mobile (`if(!isMobile)`)
+   - NUNCA criar novos canvas sem check mobile
+
+4. **DOM:**
+   - EVITAR reflows frequentes
+   - USAR `requestAnimationFrame` para updates visuais
+   - NUNCA manipular DOM em loops síncronos
+
+5. **Eventos:**
+   - SEMPRE usar `passive: true` em scroll/touch listeners
+   - DEBOUNCE eventos de resize
+
+### Variável de Detecção Mobile
+```js
+const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+```
+
+### CSS Media Query Performance
+```css
+@media(max-width:768px),(prefers-reduced-motion:reduce){
+  /* Desativa animações */
+  *{animation-duration:0.01ms!important;transition-duration:0.01ms!important;}
+  /* Oculta elementos pesados */
+  #fx,#windCanvas,#lightning,.wind-toggle{display:none!important;}
+  /* Remove efeitos GPU */
+  .card,.left-panel,.right-panel{backdrop-filter:none!important;}
+}
+```
+
+### Checklist Pré-Deploy
+- [ ] Testou no celular?
+- [ ] Animações novas têm check `isMobile`?
+- [ ] Novas chamadas API usam cache/batch?
+- [ ] CSS pesado tem override mobile?
 
 ---
 
