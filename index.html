@@ -132,6 +132,71 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 .alert-badge-storm{background:#d32f2f;color:#fff;}
 .alert-badge-wind{background:#f57c00;color:#fff;}
 
+/* ===================== SPOT MODAL ===================== */
+.spot-modal{
+  position:fixed;inset:0;z-index:8500;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;transition:opacity .4s;
+}
+.spot-modal.show{opacity:1;pointer-events:auto;}
+.spot-modal-content{
+  width:90%;max-width:700px;max-height:85vh;
+  background:var(--card);border:2px solid var(--acc);border-radius:20px;
+  overflow:hidden;transform:scale(0.9) translateY(30px);
+  transition:transform .4s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+.spot-modal.show .spot-modal-content{transform:scale(1) translateY(0);}
+.spot-modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--bdr);
+}
+.spot-modal-title{
+  font-family:'Bebas Neue';font-size:1.8rem;letter-spacing:4px;color:var(--acc);
+  display:flex;align-items:center;gap:10px;
+}
+.spot-modal-title .smt-icon{font-size:1.5rem;}
+.spot-modal-close{
+  background:rgba(255,255,255,0.1);border:1px solid var(--bdr);color:var(--txt);
+  width:36px;height:36px;border-radius:50%;cursor:pointer;
+  font-size:1.2rem;transition:all .2s;
+}
+.spot-modal-close:hover{background:var(--acc);color:var(--bg1);border-color:var(--acc);}
+.spot-modal-body{padding:20px;overflow-y:auto;max-height:calc(85vh - 80px);}
+.spot-current{
+  display:flex;align-items:center;gap:20px;padding:16px;
+  background:rgba(0,0,0,0.2);border-radius:12px;margin-bottom:16px;
+}
+.spot-current-icon{font-size:3.5rem;filter:drop-shadow(0 0 15px var(--glow));}
+.spot-current-data{flex:1;}
+.spot-current-temp{font-family:'Bebas Neue';font-size:3.5rem;color:var(--acc);line-height:1;}
+.spot-current-desc{font-family:'Orbitron';font-size:.6rem;opacity:.7;letter-spacing:2px;margin-top:4px;}
+.spot-current-meta{display:flex;gap:16px;margin-top:8px;font-family:'Orbitron';font-size:.5rem;}
+.spot-current-meta span{display:flex;align-items:center;gap:4px;opacity:.8;}
+.spot-forecast-title{
+  font-family:'Orbitron';font-size:.6rem;letter-spacing:3px;
+  color:var(--acc);margin-bottom:12px;opacity:.8;
+}
+.spot-forecast-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.spot-day{
+  padding:12px 6px;border-radius:12px;border:1px solid var(--bdr);
+  text-align:center;background:rgba(0,0,0,0.2);transition:all .2s;
+}
+.spot-day:hover{background:rgba(255,255,255,0.08);transform:translateY(-3px);border-color:var(--acc);}
+.spot-day-name{font-family:'Orbitron';font-size:.5rem;opacity:.6;letter-spacing:1px;margin-bottom:6px;}
+.spot-day-icon{font-size:1.5rem;margin:6px 0;}
+.spot-day-temps{display:flex;flex-direction:column;gap:2px;}
+.spot-day-max{font-family:'Bebas Neue';font-size:1.3rem;color:var(--acc);}
+.spot-day-min{font-family:'Orbitron';font-size:.5rem;opacity:.5;}
+.spot-day-wind{font-family:'Orbitron';font-size:.45rem;opacity:.6;margin-top:6px;}
+.spot-day-precip{font-family:'Orbitron';font-size:.4rem;color:#4fc3f7;margin-top:2px;}
+@media(max-width:600px){
+  .spot-forecast-grid{grid-template-columns:repeat(4,1fr);}
+  .spot-day:nth-child(n+5){display:none;}
+  .spot-current{flex-direction:column;text-align:center;}
+}
+
 /* ===================== SPORT MODES ===================== */
 .mode-surf{--sport-color:#0097a7;}
 .mode-kite{--sport-color:#7c4dff;}
@@ -553,6 +618,35 @@ header{
     <span class="alert-icon" id="alertIcon">⚠️</span>
     <span class="alert-text" id="alertText">ALERTA</span>
     <button class="alert-close" id="alertClose">&times;</button>
+  </div>
+</div>
+
+<!-- SPOT MODAL -->
+<div class="spot-modal" id="spotModal">
+  <div class="spot-modal-content">
+    <div class="spot-modal-header">
+      <div class="spot-modal-title">
+        <span class="smt-icon" id="smtIcon">🏖️</span>
+        <span id="smtName">SPOT</span>
+      </div>
+      <button class="spot-modal-close" id="spotModalClose">&times;</button>
+    </div>
+    <div class="spot-modal-body">
+      <div class="spot-current" id="spotCurrent">
+        <div class="spot-current-icon" id="scIcon">⛅</div>
+        <div class="spot-current-data">
+          <div class="spot-current-temp" id="scTemp">--°</div>
+          <div class="spot-current-desc" id="scDesc">CARREGANDO...</div>
+          <div class="spot-current-meta">
+            <span>💨 <span id="scWind">--</span></span>
+            <span>💧 <span id="scHum">--%</span></span>
+            <span>🌊 <span id="scWave">--</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="spot-forecast-title">📅 PREVISAO 7 DIAS</div>
+      <div class="spot-forecast-grid" id="spotForecast"></div>
+    </div>
   </div>
 </div>
 
@@ -1056,6 +1150,71 @@ document.getElementById('alertClose').onclick=()=>{
   setTimeout(()=>{alertDismissed=false;},300000); // Reset after 5 min
 };
 
+// ============ SPOT MODAL ============
+const spotModal=document.getElementById('spotModal');
+document.getElementById('spotModalClose').onclick=()=>spotModal.classList.remove('show');
+spotModal.onclick=(e)=>{if(e.target===spotModal)spotModal.classList.remove('show');};
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape')spotModal.classList.remove('show');});
+
+async function openSpotModal(name,lat,lon,type){
+  const icons={surf:'🏄',kite:'🪁',wind:'🏄',sail:'⛵',fish:'🎣',state:'📍'};
+  document.getElementById('smtIcon').textContent=icons[type]||'🏖️';
+  document.getElementById('smtName').textContent=name.toUpperCase();
+  spotModal.classList.add('show');
+
+  // Show loading state
+  document.getElementById('scIcon').textContent='⏳';
+  document.getElementById('scTemp').textContent='--°';
+  document.getElementById('scDesc').textContent='CARREGANDO...';
+  document.getElementById('spotForecast').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;opacity:.5;">CARREGANDO PREVISAO...</div>';
+
+  // Fetch 7-day forecast
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max&timezone=America%2FSao_Paulo&forecast_days=7`);
+    const d=await r.json();
+    const c=d.current;
+
+    // Update current conditions
+    document.getElementById('scIcon').textContent=wmoIcon(c.weather_code);
+    document.getElementById('scTemp').textContent=toN(c.temperature_2m)+'°';
+    document.getElementById('scDesc').textContent=wmoDesc(c.weather_code);
+    document.getElementById('scWind').textContent=toW(c.wind_speed_10m);
+    document.getElementById('scHum').textContent=c.relative_humidity_2m+'%';
+
+    // Try to get wave data
+    const marine=await fwMarine(lat,lon);
+    if(marine?.current?.wave_height){
+      document.getElementById('scWave').textContent=marine.current.wave_height.toFixed(1)+'m';
+    }else{
+      document.getElementById('scWave').textContent='--';
+    }
+
+    // Build 7-day forecast
+    const D=['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+    const fg=document.getElementById('spotForecast');
+    fg.innerHTML='';
+    for(let i=0;i<7;i++){
+      const dt=new Date(d.daily.time[i]);
+      const div=document.createElement('div');
+      div.className='spot-day';
+      div.innerHTML=`
+        <div class="spot-day-name">${i===0?'HOJE':D[dt.getDay()]}</div>
+        <div class="spot-day-icon">${wmoIcon(d.daily.weather_code[i])}</div>
+        <div class="spot-day-temps">
+          <div class="spot-day-max">${toN(d.daily.temperature_2m_max[i])}°</div>
+          <div class="spot-day-min">${toN(d.daily.temperature_2m_min[i])}°</div>
+        </div>
+        <div class="spot-day-wind">💨 ${toWn(d.daily.wind_speed_10m_max[i])}</div>
+        <div class="spot-day-precip">💧 ${d.daily.precipitation_probability_max[i]}%</div>
+      `;
+      fg.appendChild(div);
+    }
+  }catch(e){
+    document.getElementById('scDesc').textContent='ERRO AO CARREGAR';
+    document.getElementById('spotForecast').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:#f44336;">ERRO AO CARREGAR DADOS</div>';
+  }
+}
+
 // ============ WAVE HELPERS ============
 function waveQuality(height){
   if(height===null||height===undefined)return{label:'SEM DADOS',cls:'wq-flat'};
@@ -1140,7 +1299,7 @@ async function placeStateMarkers(){
 async function placeSpotMarkers(){
   SPOTS.forEach(sp=>{
     const marker=L.marker([sp.lat,sp.lon],{icon:makeSpotIcon(sp.type)}).addTo(map);
-    marker.on('click',async()=>{await showMapPopup(sp.lat,sp.lon,sp.name);});
+    marker.on('click',()=>{openSpotModal(sp.name,sp.lat,sp.lon,sp.type);});
     spotMarkers.push({sp,marker});
   });
   buildSpotsGrid();
@@ -1310,7 +1469,7 @@ function buildSpotsGrid(){
     const btn=document.createElement('button');
     btn.className='spot-btn';
     btn.innerHTML=`<span class="spot-icon">${icons[sp.type]||'\uD83C\uDFC4'}</span><span class="spot-name">${sp.name.toUpperCase()}</span>`;
-    btn.onclick=async()=>{map.setView([sp.lat,sp.lon],10,{animate:true});await showMapPopup(sp.lat,sp.lon,sp.name);await loadMain(sp.lat,sp.lon,sp.name);};
+    btn.onclick=()=>{map.setView([sp.lat,sp.lon],10,{animate:true});openSpotModal(sp.name,sp.lat,sp.lon,sp.type);};
     g.appendChild(btn);
   });
 }
