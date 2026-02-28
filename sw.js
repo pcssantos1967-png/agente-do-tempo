@@ -1,5 +1,5 @@
-// MetBrasil Service Worker v1.0
-const CACHE_NAME = 'metbrasil-v1';
+// MetBrasil Service Worker v2.0
+const CACHE_NAME = 'metbrasil-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
