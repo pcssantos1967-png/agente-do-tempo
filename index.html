@@ -112,6 +112,32 @@ body{background:linear-gradient(145deg,var(--bg1),var(--bg2));color:var(--txt);}
 .night-indicator.is-night .ni-icon{transform:rotate(360deg);}
 .night-indicator .ni-text{opacity:.7;}
 
+/* ===================== NOTIFICATION TOGGLE ===================== */
+.notif-toggle{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:15px;
+  background:rgba(0,0,0,0.3);border:1px solid var(--bdr);
+  font-family:'Orbitron';font-size:.5rem;letter-spacing:1px;
+  transition:all .3s;cursor:pointer;
+}
+.notif-toggle:hover{background:rgba(255,255,255,0.1);border-color:var(--acc);}
+.notif-toggle .notif-icon{font-size:1rem;transition:transform .3s;}
+.notif-toggle.on{border-color:var(--acc);background:rgba(var(--acc),.15);}
+.notif-toggle.on .notif-icon{animation:bell-ring .5s ease;}
+@keyframes bell-ring{0%,100%{transform:rotate(0);}25%{transform:rotate(15deg);}50%{transform:rotate(-15deg);}75%{transform:rotate(10deg);}}
+.notif-toggle .notif-text{opacity:.7;}
+.notif-toggle.on .notif-text{opacity:1;color:var(--acc);}
+/* Alert level dropdown (shown when notifications enabled) */
+.alert-level-select{
+  padding:4px 8px;border-radius:10px;
+  background:rgba(0,0,0,0.4);border:1px solid var(--bdr);
+  color:var(--txt);font-family:'Orbitron';font-size:.45rem;
+  cursor:pointer;outline:none;
+}
+.alert-level-select:focus{border-color:var(--acc);}
+.alert-level-wrap{display:none;align-items:center;gap:6px;}
+.alert-level-wrap.show{display:flex;}
+
 /* ===================== LANGUAGE TOGGLE ===================== */
 .lang-toggle{
   display:flex;align-items:center;gap:2px;
@@ -801,6 +827,10 @@ header{
   .ws-desc,.ws-loc{display:none;} /* Hide text on small screens */
   .ws-icon{font-size:1.1rem;}
   .ws-temp{font-size:1rem;}
+  /* Compact notification toggle on mobile */
+  .notif-toggle .notif-text{display:none;}
+  .notif-toggle{padding:6px 8px;}
+  .alert-level-wrap{display:none!important;} /* Hide dropdown on mobile */
 }
 
 /* MOBILE PERFORMANCE: disable heavy animations */
@@ -937,6 +967,17 @@ header{
       <div class="night-indicator" id="nightIndicator" title="Modo dia/noite automatico">
         <span class="ni-icon" id="niIcon">&#9728;&#65039;</span>
         <span class="ni-text" id="niText">DIA</span>
+      </div>
+      <div class="notif-toggle" id="notifToggle" onclick="togglePushNotifications()" title="Alertas de tempo severo" role="switch" aria-checked="false" tabindex="0">
+        <span class="notif-icon" id="notifIcon">&#128276;</span>
+        <span class="notif-text" id="notifText">ALERTAS</span>
+      </div>
+      <div class="alert-level-wrap" id="alertLevelWrap">
+        <select class="alert-level-select" id="alertLevelSelect" onchange="changeAlertLevel(this.value)" title="Nivel de alerta">
+          <option value="all">Todos</option>
+          <option value="severe">Severos</option>
+          <option value="extreme">Extremos</option>
+        </select>
       </div>
       <div class="lang-toggle" id="langToggle">
         <button class="lang-btn on" id="langPT">PT</button>
@@ -1126,6 +1167,216 @@ function isValidUrl(url){
     const parsed=new URL(url);
     return['http:','https:'].includes(parsed.protocol);
   }catch{return false;}
+}
+
+// ============ PUSH NOTIFICATIONS ============
+const NOTIFICATION_SETTINGS_KEY='metbrasil_notifications';
+let notificationsEnabled=false;
+let alertLevel='all'; // 'all', 'severe', 'extreme'
+let lastAlertTime=0;
+const ALERT_COOLDOWN=30*60*1000; // 30 minutes between same alerts
+
+// Load notification settings from localStorage
+function loadNotificationSettings(){
+  try{
+    const stored=localStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+    if(stored){
+      const settings=JSON.parse(stored);
+      notificationsEnabled=settings.enabled||false;
+      alertLevel=settings.level||'all';
+    }
+  }catch(e){console.warn('loadNotificationSettings error:',e);}
+}
+
+// Save notification settings to localStorage
+function saveNotificationSettings(){
+  try{
+    localStorage.setItem(NOTIFICATION_SETTINGS_KEY,JSON.stringify({
+      enabled:notificationsEnabled,
+      level:alertLevel
+    }));
+  }catch(e){console.warn('saveNotificationSettings error:',e);}
+}
+
+// Check if browser supports notifications
+function supportsNotifications(){
+  return'Notification'in window&&'serviceWorker'in navigator;
+}
+
+// Request notification permission
+async function requestNotificationPermission(){
+  if(!supportsNotifications()){
+    console.log('Browser does not support notifications');
+    return false;
+  }
+  if(Notification.permission==='granted')return true;
+  if(Notification.permission!=='denied'){
+    const permission=await Notification.requestPermission();
+    return permission==='granted';
+  }
+  return false;
+}
+
+// Toggle push notifications
+async function togglePushNotifications(){
+  const toggle=document.getElementById('notifToggle');
+  const levelWrap=document.getElementById('alertLevelWrap');
+
+  if(!notificationsEnabled){
+    // Enable notifications
+    const granted=await requestNotificationPermission();
+    if(granted){
+      notificationsEnabled=true;
+      toggle.classList.add('on');
+      toggle.setAttribute('aria-checked','true');
+      levelWrap.classList.add('show');
+      saveNotificationSettings();
+      // Show confirmation notification
+      showLocalNotification({
+        title:'Alertas Ativados',
+        body:'Você receberá notificações de condições meteorológicas severas.',
+        severity:'info'
+      });
+    }else{
+      alert('Permissão de notificações negada. Verifique as configurações do navegador.');
+    }
+  }else{
+    // Disable notifications
+    notificationsEnabled=false;
+    toggle.classList.remove('on');
+    toggle.setAttribute('aria-checked','false');
+    levelWrap.classList.remove('show');
+    saveNotificationSettings();
+  }
+}
+
+// Change alert level threshold
+function changeAlertLevel(level){
+  alertLevel=level;
+  saveNotificationSettings();
+}
+
+// Show local notification via Service Worker
+async function showLocalNotification(alert){
+  if(!notificationsEnabled&&alert.severity!=='info')return;
+  if(Notification.permission!=='granted')return;
+
+  // Cooldown check (except for info notifications)
+  const now=Date.now();
+  if(alert.severity!=='info'&&now-lastAlertTime<ALERT_COOLDOWN)return;
+  lastAlertTime=now;
+
+  try{
+    const registration=await navigator.serviceWorker.ready;
+    const iconMap={
+      extreme:'/icon-192.png',
+      severe:'/icon-192.png',
+      moderate:'/icon-192.png',
+      info:'/icon-192.png'
+    };
+
+    await registration.showNotification(alert.title,{
+      body:alert.body,
+      icon:iconMap[alert.severity]||'/icon-192.png',
+      badge:'/badge-72.png',
+      vibrate:alert.severity==='extreme'?[500,200,500,200,500]:[200,100,200],
+      tag:`alert-${alert.severity}-${Date.now()}`,
+      requireInteraction:alert.severity==='extreme',
+      silent:alert.severity==='info',
+      data:{severity:alert.severity}
+    });
+  }catch(e){console.warn('showLocalNotification error:',e);}
+}
+
+// Check weather data for severe conditions and trigger alerts
+function checkSevereWeather(weatherData){
+  if(!notificationsEnabled||!weatherData||!weatherData.current)return;
+
+  const code=weatherData.current.weather_code;
+  const wind=weatherData.current.wind_speed_10m;
+  const alerts=[];
+
+  // Extreme conditions (code >= 95: thunderstorms)
+  if(code>=95){
+    alerts.push({
+      title:'TEMPESTADE SEVERA',
+      body:'Condições perigosas detectadas. Evite áreas abertas e procure abrigo.',
+      severity:'extreme'
+    });
+  }
+  // Severe conditions (code 65-94: heavy rain/snow)
+  else if(code>=65){
+    alerts.push({
+      title:'CHUVA FORTE',
+      body:'Chuva intensa na sua região. Risco de alagamentos.',
+      severity:'severe'
+    });
+  }
+  // Heavy rain showers (code 82)
+  if(code===82){
+    alerts.push({
+      title:'PANCADAS FORTES',
+      body:'Pancadas de chuva forte previstas. Cuidado ao dirigir.',
+      severity:'severe'
+    });
+  }
+
+  // High wind alert (>= 60 km/h)
+  if(wind>=60){
+    alerts.push({
+      title:'VENDAVAL',
+      body:`Ventos de ${Math.round(wind)} km/h. Cuidado com objetos soltos e árvores.`,
+      severity:wind>=80?'extreme':'severe'
+    });
+  }
+
+  // Filter by user's alert level preference
+  const filteredAlerts=alerts.filter(a=>{
+    if(alertLevel==='all')return true;
+    if(alertLevel==='severe')return a.severity==='severe'||a.severity==='extreme';
+    if(alertLevel==='extreme')return a.severity==='extreme';
+    return true;
+  });
+
+  // Show notifications
+  filteredAlerts.forEach(alert=>showLocalNotification(alert));
+}
+
+// Start periodic weather check for alerts (every 30 minutes)
+function startAlertPolling(){
+  if(!supportsNotifications())return;
+
+  setInterval(async()=>{
+    if(!notificationsEnabled||!uLat||!uLon)return;
+    try{
+      const weather=await fw(uLat,uLon);
+      if(weather)checkSevereWeather(weather);
+    }catch(e){console.warn('Alert polling error:',e);}
+  },30*60*1000);
+}
+
+// Initialize notification UI based on saved settings
+function initNotificationUI(){
+  if(!supportsNotifications()){
+    // Hide notification controls if not supported
+    const notifToggle=document.getElementById('notifToggle');
+    if(notifToggle)notifToggle.style.display='none';
+    return;
+  }
+
+  const toggle=document.getElementById('notifToggle');
+  const levelWrap=document.getElementById('alertLevelWrap');
+  const levelSelect=document.getElementById('alertLevelSelect');
+
+  if(notificationsEnabled&&Notification.permission==='granted'){
+    toggle.classList.add('on');
+    toggle.setAttribute('aria-checked','true');
+    levelWrap.classList.add('show');
+    levelSelect.value=alertLevel;
+  }else{
+    notificationsEnabled=false;
+    saveNotificationSettings();
+  }
 }
 
 // ============ DATA ============
@@ -2447,6 +2698,8 @@ async function loadMain(lat,lon,city){
   // Check for weather alerts
   const alert=checkAlerts(c,d.daily);
   showAlert(alert);
+  // Check for severe weather and send push notification
+  checkSevereWeather(d);
   // Load marine/wave data
   fwMarine(lat,lon).then(marine=>buildWaves(marine));
   // Build tide display
@@ -2755,6 +3008,10 @@ async function init(){
   initMap(-14,-52);
   startLightning();
 
+  // Initialize notification settings
+  loadNotificationSettings();
+  initNotificationUI();
+
   // Check for shared spot URL
   const sharedSpot=parseUrlParams();
 
@@ -2781,6 +3038,9 @@ async function init(){
 
   // Check INMET official alerts (skip on mobile for performance)
   checkINMETAlerts();
+
+  // Start push notification polling for severe weather
+  startAlertPolling();
 
   // Open shared spot modal after everything loads
   if(sharedSpot){

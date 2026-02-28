@@ -1,5 +1,5 @@
-// MetBrasil Service Worker v4.0 (Security Enhanced)
-const CACHE_NAME = 'metbrasil-v4';
+// MetBrasil Service Worker v5.0 (Security Enhanced + Push Notifications)
+const CACHE_NAME = 'metbrasil-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -95,4 +95,73 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// ============ PUSH NOTIFICATIONS ============
+
+// Receive push notification from server (for future backend integration)
+self.addEventListener('push', (event) => {
+  let data = { title: 'MetBrasil Alerta', body: 'Alerta meteorológico' };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icon-192.png',
+    badge: '/badge-72.png',
+    vibrate: data.severity === 'extreme' ? [500, 200, 500, 200, 500] : [200, 100, 200],
+    tag: data.tag || 'weather-alert',
+    renotify: true,
+    requireInteraction: data.severity === 'extreme',
+    actions: [
+      { action: 'view', title: 'Ver Detalhes' },
+      { action: 'dismiss', title: 'Dispensar' }
+    ],
+    data: {
+      url: data.url || '/',
+      alertId: data.alertId,
+      severity: data.severity
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  // Open app or focus existing window
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if app is already open
+      for (const client of windowClients) {
+        if (client.url.includes('agente-do-tempo') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Open new window
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url || '/');
+      }
+    })
+  );
+});
+
+// Handle notification close
+self.addEventListener('notificationclose', (event) => {
+  // Analytics could be added here
+  console.log('Notification closed:', event.notification.tag);
 });
