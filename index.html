@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- CSP removed for compatibility -->
+<!-- Content Security Policy -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://air-quality-api.open-meteo.com https://ipapi.co https://corsproxy.io https://apiprevmet3.inmet.gov.br;">
 <title>MetBrasil - Inteligencia Climatica para Esportes</title>
 
 <!-- PWA -->
@@ -1118,6 +1119,14 @@ function validateSpotType(type){
   const allowed=['surf','kite','wind','sail','fish','para','state'];
   return allowed.includes(type)?type:'surf';
 }
+// Validate URL has safe protocol (prevents javascript: XSS)
+function isValidUrl(url){
+  if(!url||typeof url!=='string')return false;
+  try{
+    const parsed=new URL(url);
+    return['http:','https:'].includes(parsed.protocol);
+  }catch{return false;}
+}
 
 // ============ DATA ============
 const STATES=[
@@ -1915,7 +1924,7 @@ function showINMETModal(alert){
       <div class="inmet-field-label">ÁREAS AFETADAS</div>
       <div class="inmet-field-value">${escapeHtml(alert.area)||'Não especificado.'}</div>
     </div>
-    ${alert.link?`<a href="${escapeHtml(alert.link)}" target="_blank" rel="noopener" class="inmet-link">VER NO INMET →</a>`:''}
+    ${alert.link&&isValidUrl(alert.link)?`<a href="${escapeHtml(alert.link)}" target="_blank" rel="noopener" class="inmet-link">VER NO INMET →</a>`:''}
   `;
   modal.classList.add('show');
 }
