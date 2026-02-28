@@ -1,5 +1,5 @@
-// MetBrasil Service Worker v5.0 (Security Enhanced + Push Notifications)
-const CACHE_NAME = 'metbrasil-v5';
+// MetBrasil Service Worker v6.0 (Security Enhanced + Push Notifications)
+const CACHE_NAME = 'metbrasil-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
